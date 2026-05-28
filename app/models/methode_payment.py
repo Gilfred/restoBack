@@ -3,7 +3,7 @@ from typing import List, TYPE_CHECKING
 from sqlalchemy import String, DateTime, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
-from app.models.enums import MethodePaiementEnum
+from app.enums import MethodePaiementEnum
 
 if TYPE_CHECKING:
     from app.models.reglement_facture import ReglementFacture

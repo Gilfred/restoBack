@@ -1,6 +1,7 @@
 from sqlmodel import Session, select
 from app.database import engine, create_db_and_tables
-from app.models import Role, Permission, User, MethodePayment, MethodePaiementEnum
+from app.models import Role, Permission, User, MethodePayment
+from app.enums import MethodePaiementEnum
 import datetime
 
 def seed_data():

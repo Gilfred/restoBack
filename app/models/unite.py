@@ -3,7 +3,7 @@ from typing import List, TYPE_CHECKING
 from sqlalchemy import DateTime, ForeignKey, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
-from app.models.enums import UniteType
+from app.enums import UniteType
 
 if TYPE_CHECKING:
     from app.models.restaurant import Restaurant

@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 from datetime import datetime
 from sqlmodel import Field, Relationship, SQLModel, Column, DateTime, func
-from app.models.enums import (
+from app.enums import (
     BoissonContenance,
     MethodePaiementEnum,
     CasierType,
