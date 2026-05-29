@@ -15,15 +15,15 @@ if TYPE_CHECKING:
 
 class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(255))
-    email = Column(String(255), index=True, unique=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), index=True, unique=True, nullable=False)
     emailVerified = Column(DateTime)
     image = Column(String(255))
-    password = Column(String(255))
+    password = Column(String(255), nullable=False)
     restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
-    isActive = Column(Boolean, default=True)
-    createdAt = Column(DateTime, default=func.now())
-    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
+    isActive = Column(Boolean, default=True, nullable=False)
+    createdAt = Column(DateTime, default=func.now(), nullable=False)
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     roles = relationship(
         "Role", secondary="userrole", back_populates="users"
