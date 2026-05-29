@@ -28,7 +28,6 @@ class User(Base):
     restaurant: Mapped[Optional["Restaurant"]] = relationship(
         "Restaurant",
         back_populates="staff",
-        foreign_keys=[restaurantId]
     )
     owned_restaurants: Mapped[List["Restaurant"]] = relationship(
         "Restaurant",
