@@ -1,0 +1,4 @@
+oauth.register(
+    name="google",
+    
+)
