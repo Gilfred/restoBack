@@ -18,7 +18,6 @@ class User(Base):
     emailVerified: Mapped[datetime | None] = mapped_column(DateTime)
     image: Mapped[str | None] = mapped_column(String(255))
     password: Mapped[str] = mapped_column(String(255))
-    restaurantId: Mapped[int | None] = mapped_column(ForeignKey("restaurant.id"))
     isActive: Mapped[bool] = mapped_column(Boolean, default=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
