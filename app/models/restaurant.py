@@ -1,10 +1,9 @@
-import uuid
-from sqlalchemy import column, String
-from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
+import uuid
 from typing import List, TYPE_CHECKING
-from sqlalchemy import String, DateTime, ForeignKey, Boolean, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, func, Column
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
@@ -18,29 +17,29 @@ if TYPE_CHECKING:
     from app.models.unite import Unite
 
 class Restaurant(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255))
-    address: Mapped[str] = mapped_column(String(255))
-    phone: Mapped[str] = mapped_column(String(255))
-    ownerId: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    isActive: Mapped[bool] = mapped_column(Boolean, default=True)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255))
+    address = Column(String(255))
+    phone = Column(String(255))
+    ownerId = Column(UUID(as_uuid=True), ForeignKey("user.id"))
+    isActive = Column(Boolean, default=True)
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    owner: Mapped["User"] = relationship(
+    owner = relationship(
         "User",
         back_populates="owned_restaurants",
         foreign_keys=[ownerId]
     )
-    staff: Mapped[List["User"]] = relationship(
+    staff = relationship(
         "User",
         back_populates="restaurant",
         foreign_keys="[User.restaurantId]"
     )
-    boissons: Mapped[List["Boisson"]] = relationship("Boisson", back_populates="restaurant")
-    repas: Mapped[List["Repas"]] = relationship("Repas", back_populates="restaurant")
-    condiments: Mapped[List["Condiment"]] = relationship("Condiment", back_populates="restaurant")
-    commandes: Mapped[List["Commande"]] = relationship("Commande", back_populates="restaurant")
-    reglementFactures: Mapped[List["ReglementFacture"]] = relationship("ReglementFacture", back_populates="restaurant")
-    casiers: Mapped[List["Casier"]] = relationship("Casier", back_populates="restaurant")
-    unites: Mapped[List["Unite"]] = relationship("Unite", back_populates="restaurant")
+    boissons = relationship("Boisson", back_populates="restaurant")
+    repas = relationship("Repas", back_populates="restaurant")
+    condiments = relationship("Condiment", back_populates="restaurant")
+    commandes = relationship("Commande", back_populates="restaurant")
+    reglementFactures = relationship("ReglementFacture", back_populates="restaurant")
+    casiers = relationship("Casier", back_populates="restaurant")
+    unites = relationship("Unite", back_populates="restaurant")

@@ -1,9 +1,8 @@
-import uuid
-from sqlalchemy import column, String
-from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Float, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+import uuid
+from sqlalchemy import DateTime, ForeignKey, Float, func, Column
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from typing import TYPE_CHECKING
 
@@ -13,14 +12,14 @@ if TYPE_CHECKING:
     from app.models.methode_payment import MethodePayment
 
 class ReglementFacture(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    restaurantId: Mapped[int] = mapped_column(ForeignKey("restaurant.id"))
-    commandeId: Mapped[int] = mapped_column(ForeignKey("commande.id"))
-    montant: Mapped[float] = mapped_column(Float)
-    methodeId: Mapped[int] = mapped_column(ForeignKey("methodepayment.id"))
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
+    commandeId = Column(UUID(as_uuid=True), ForeignKey("commande.id"))
+    montant = Column(Float)
+    methodeId = Column(UUID(as_uuid=True), ForeignKey("methodepayment.id"))
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    restaurant: Mapped["Restaurant"] = relationship("Restaurant", back_populates="reglementFactures")
-    commande: Mapped["Commande"] = relationship("Commande", back_populates="reglementFactures")
-    methode: Mapped["MethodePayment"] = relationship("MethodePayment", back_populates="reglementFactures")
+    restaurant = relationship("Restaurant", back_populates="reglementFactures")
+    commande = relationship("Commande", back_populates="reglementFactures")
+    methode = relationship("MethodePayment", back_populates="reglementFactures")

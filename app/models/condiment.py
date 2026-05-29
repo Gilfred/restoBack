@@ -1,10 +1,9 @@
-import uuid
-from sqlalchemy import column, String
-from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
+import uuid
 from typing import List, TYPE_CHECKING
-from sqlalchemy import String, DateTime, ForeignKey, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, DateTime, ForeignKey, func, Column
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
@@ -12,11 +11,11 @@ if TYPE_CHECKING:
     from app.models.appro_cuisine import ApproCuisine
 
 class Condiment(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    restaurantId: Mapped[int] = mapped_column(ForeignKey("restaurant.id"))
-    nomcondiment: Mapped[str] = mapped_column(String(255))
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
+    nomcondiment = Column(String(255))
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    restaurant: Mapped["Restaurant"] = relationship("Restaurant", back_populates="condiments")
-    approCuisines: Mapped[List["ApproCuisine"]] = relationship("ApproCuisine", back_populates="condiment")
+    restaurant = relationship("Restaurant", back_populates="condiments")
+    approCuisines = relationship("ApproCuisine", back_populates="condiment")

@@ -1,21 +1,19 @@
-import uuid
-from sqlalchemy import column, String
-from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
-from sqlalchemy import ForeignKey, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column
+import uuid
+from sqlalchemy import ForeignKey, DateTime, func, Column
+from sqlalchemy.dialects.postgresql import UUID
 from app.db.base_class import Base
 
 class UserRole(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    userId: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    roleId: Mapped[int] = mapped_column(ForeignKey("role.id"))
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    userId = Column(UUID(as_uuid=True), ForeignKey("user.id"))
+    roleId = Column(UUID(as_uuid=True), ForeignKey("role.id"))
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
 class RolePermission(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    roleId: Mapped[int] = mapped_column(ForeignKey("role.id"))
-    permissionId: Mapped[int] = mapped_column(ForeignKey("permission.id"))
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    roleId = Column(UUID(as_uuid=True), ForeignKey("role.id"))
+    permissionId = Column(UUID(as_uuid=True), ForeignKey("permission.id"))
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())

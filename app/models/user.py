@@ -1,7 +1,9 @@
 from datetime import datetime
+import uuid
 from typing import List, Optional, TYPE_CHECKING
-from sqlalchemy import String, DateTime, ForeignKey, Boolean, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, func, Column
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
@@ -12,28 +14,30 @@ if TYPE_CHECKING:
     from app.models.commande import Commande
 
 class User(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255))
-    email: Mapped[str] = mapped_column(String(255), index=True, unique=True)
-    emailVerified: Mapped[datetime | None] = mapped_column(DateTime)
-    image: Mapped[str | None] = mapped_column(String(255))
-    password: Mapped[str] = mapped_column(String(255))
-    isActive: Mapped[bool] = mapped_column(Boolean, default=True)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255))
+    email = Column(String(255), index=True, unique=True)
+    emailVerified = Column(DateTime)
+    image = Column(String(255))
+    password = Column(String(255))
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
+    isActive = Column(Boolean, default=True)
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    roles: Mapped[List["Role"]] = relationship(
+    roles = relationship(
         "Role", secondary="userrole", back_populates="users"
     )
-    restaurant: Mapped[Optional["Restaurant"]] = relationship(
+    restaurant = relationship(
         "Restaurant",
         back_populates="staff",
+        foreign_keys=[restaurantId]
     )
-    owned_restaurants: Mapped[List["Restaurant"]] = relationship(
+    owned_restaurants = relationship(
         "Restaurant",
         back_populates="owner",
         foreign_keys="[Restaurant.ownerId]"
     )
-    sessions: Mapped[List["Session"]] = relationship("Session", back_populates="user")
-    accounts: Mapped[List["Account"]] = relationship("Account", back_populates="user")
-    commandes: Mapped[List["Commande"]] = relationship("Commande", back_populates="user")
+    sessions = relationship("Session", back_populates="user")
+    accounts = relationship("Account", back_populates="user")
+    commandes = relationship("Commande", back_populates="user")
