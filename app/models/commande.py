@@ -1,7 +1,9 @@
 from datetime import datetime
+import uuid
 from typing import List, TYPE_CHECKING
-from sqlalchemy import String, DateTime, ForeignKey, Float, func, Enum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, DateTime, ForeignKey, Float, func, Enum, Column
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from app.enums import CommandeStatut
 
@@ -12,16 +14,16 @@ if TYPE_CHECKING:
     from app.models.reglement_facture import ReglementFacture
 
 class Commande(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    restaurantId: Mapped[int] = mapped_column(ForeignKey("restaurant.id"))
-    numeroCommande: Mapped[str] = mapped_column(String(255), index=True)
-    userId: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    total: Mapped[float] = mapped_column(Float, default=0.0)
-    statut: Mapped[CommandeStatut] = mapped_column(Enum(CommandeStatut), default=CommandeStatut.PENDING)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
+    numeroCommande = Column(String(255), index=True)
+    userId = Column(UUID(as_uuid=True), ForeignKey("user.id"))
+    total = Column(Float, default=0.0)
+    statut = Column(Enum(CommandeStatut), default=CommandeStatut.PENDING)
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    restaurant: Mapped["Restaurant"] = relationship("Restaurant", back_populates="commandes")
-    user: Mapped["User"] = relationship("User", back_populates="commandes")
-    articles: Mapped[List["CommandeArticle"]] = relationship("CommandeArticle", back_populates="commande")
-    reglementFactures: Mapped[List["ReglementFacture"]] = relationship("ReglementFacture", back_populates="commande")
+    restaurant = relationship("Restaurant", back_populates="commandes")
+    user = relationship("User", back_populates="commandes")
+    articles = relationship("CommandeArticle", back_populates="commande")
+    reglementFactures = relationship("ReglementFacture", back_populates="commande")

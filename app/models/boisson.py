@@ -1,7 +1,9 @@
 from datetime import datetime
+import uuid
 from typing import List, TYPE_CHECKING
-from sqlalchemy import String, DateTime, ForeignKey, Float, Integer, func, Enum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, DateTime, ForeignKey, Float, Integer, func, Enum, Column
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from app.enums import BoissonContenance
 
@@ -10,14 +12,14 @@ if TYPE_CHECKING:
     from app.models.appro_boisson import ApproBoisson
 
 class Boisson(Base):
-    id: Mapped[int] = mapped_column(primary_key=True)
-    restaurantId: Mapped[int] = mapped_column(ForeignKey("restaurant.id"))
-    nomBoisson: Mapped[str] = mapped_column(String(255))
-    contenance: Mapped[BoissonContenance] = mapped_column(Enum(BoissonContenance))
-    prixVente: Mapped[float] = mapped_column(Float)
-    stock: Mapped[int] = mapped_column(Integer, default=0)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
+    nomBoisson = Column(String(255))
+    contenance = Column(Enum(BoissonContenance))
+    prixVente = Column(Float)
+    stock = Column(Integer, default=0)
+    createdAt = Column(DateTime, default=func.now())
+    updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    restaurant: Mapped["Restaurant"] = relationship("Restaurant", back_populates="boissons")
-    approBoissons: Mapped[List["ApproBoisson"]] = relationship("ApproBoisson", back_populates="boisson")
+    restaurant = relationship("Restaurant", back_populates="boissons")
+    approBoissons = relationship("ApproBoisson", back_populates="boisson")
