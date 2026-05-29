@@ -21,7 +21,7 @@ class Restaurant(Base):
     name = Column(String(255))
     address = Column(String(255))
     phone = Column(String(255))
-    ownerId = Column(UUID(as_uuid=True), ForeignKey("user.id"))
+    ownerId = Column(UUID(as_uuid=True), ForeignKey("user.id", use_alter=True, name="fk_restaurant_owner"))
     isActive = Column(Boolean, default=True)
     createdAt = Column(DateTime, default=func.now())
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
