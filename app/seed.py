@@ -1,4 +1,5 @@
-from sqlmodel import Session, select
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 from app.database import engine, create_db_and_tables
 from app.models import Role, Permission, User, MethodePayment
 from app.enums import MethodePaiementEnum
@@ -13,21 +14,21 @@ def seed_data():
             Permission(name="view_all_reports", description="Can view reports from all restaurants"),
         ]
         for p in permissions:
-            existing = session.exec(select(Permission).where(Permission.name == p.name)).first()
+            existing = session.execute(select(Permission).where(Permission.name == p.name)).scalars().first()
             if not existing:
                 session.add(p)
         session.commit()
 
         # 2. Create Roles
-        superadmin_role = session.exec(select(Role).where(Role.name == "SUPERADMIN")).first()
+        superadmin_role = session.execute(select(Role).where(Role.name == "SUPERADMIN")).scalars().first()
         if not superadmin_role:
             superadmin_role = Role(name="SUPERADMIN", description="Super Administrator with full access")
             # Assign all permissions to superadmin
-            all_perms = session.exec(select(Permission)).all()
-            superadmin_role.permissions = all_perms
+            all_perms = session.execute(select(Permission)).scalars().all()
+            superadmin_role.permissions = list(all_perms)
             session.add(superadmin_role)
 
-        admin_role = session.exec(select(Role).where(Role.name == "ADMIN")).first()
+        admin_role = session.execute(select(Role).where(Role.name == "ADMIN")).scalars().first()
         if not admin_role:
             admin_role = Role(name="ADMIN", description="Restaurant Administrator")
             session.add(admin_role)
@@ -35,7 +36,7 @@ def seed_data():
         session.commit()
 
         # 3. Create Superadmin User
-        superadmin_user = session.exec(select(User).where(User.email == "admin@example.com")).first()
+        superadmin_user = session.execute(select(User).where(User.email == "admin@example.com")).scalars().first()
         if not superadmin_user:
             superadmin_user = User(
                 name="Super Admin",
@@ -49,7 +50,7 @@ def seed_data():
 
         # 4. Create Payment Methods
         for method in MethodePaiementEnum:
-            existing = session.exec(select(MethodePayment).where(MethodePayment.nomMethode == method)).first()
+            existing = session.execute(select(MethodePayment).where(MethodePayment.nomMethode == method)).scalars().first()
             if not existing:
                 session.add(MethodePayment(nomMethode=method))
         session.commit()
@@ -57,5 +58,6 @@ def seed_data():
         print("Seeding completed successfully.")
 
 if __name__ == "__main__":
-    create_db_and_tables()
+    # Ensure tables are created before seeding
+    # create_db_and_tables()
     seed_data()
