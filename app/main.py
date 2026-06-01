@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 from app.database import create_db_and_tables
 from app.seed import seed_data
-from app.routes.auth.google import router as auth_router
+from app.routes.auth.google import router as google_auth_router
+from app.routes.auth.email import router as email_auth_router
 import os
 
 #create FastAPI app
@@ -18,7 +19,8 @@ app = FastAPI(
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "your-secret-key"))
 
 # Include routers
-app.include_router(auth_router, prefix="/auth", tags=["authentication"])
+app.include_router(google_auth_router, prefix="/auth", tags=["google-authentication"])
+app.include_router(email_auth_router, prefix="/auth", tags=["email-authentication"])
 
 @app.on_event("startup")
 def on_startup():
