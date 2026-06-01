@@ -2,7 +2,7 @@ from datetime import datetime
 import uuid
 from typing import List, TYPE_CHECKING
 from sqlalchemy import String, DateTime, ForeignKey, Float, func, Enum, Column
-from app.db.guid import GUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from app.enums import CommandeStatut
@@ -14,10 +14,10 @@ if TYPE_CHECKING:
     from app.models.reglement_facture import ReglementFacture
 
 class Commande(Base):
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    restaurantId = Column(GUID(), ForeignKey("restaurant.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
     numeroCommande = Column(String(255), index=True)
-    userId = Column(GUID(), ForeignKey("user.id"))
+    userId = Column(UUID(as_uuid=True), ForeignKey("user.id"))
     total = Column(Float, default=0.0)
     statut = Column(Enum(CommandeStatut), default=CommandeStatut.PENDING)
     createdAt = Column(DateTime, default=func.now())

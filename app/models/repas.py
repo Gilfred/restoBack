@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy import String, DateTime, ForeignKey, Float, func, Column
-from app.db.guid import GUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from typing import TYPE_CHECKING
@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from app.models.restaurant import Restaurant
 
 class Repas(Base):
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    restaurantId = Column(GUID(), ForeignKey("restaurant.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
     nomRepas = Column(String(255))
     prix = Column(Float)
     createdAt = Column(DateTime, default=func.now())

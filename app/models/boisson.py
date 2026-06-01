@@ -2,7 +2,7 @@ from datetime import datetime
 import uuid
 from typing import List, TYPE_CHECKING
 from sqlalchemy import String, DateTime, ForeignKey, Float, Integer, func, Enum, Column
-from app.db.guid import GUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from app.enums import BoissonContenance
@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from app.models.appro_boisson import ApproBoisson
 
 class Boisson(Base):
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    restaurantId = Column(GUID(), ForeignKey("restaurant.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
     nomBoisson = Column(String(255))
     contenance = Column(Enum(BoissonContenance))
     prixVente = Column(Float)
