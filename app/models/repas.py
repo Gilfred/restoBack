@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy import String, DateTime, ForeignKey, Float, func, Column
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from typing import TYPE_CHECKING

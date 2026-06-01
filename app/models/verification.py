@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy import String, DateTime, func, Column
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import UUID
 from app.db.base_class import Base
 
 class Verification(Base):
