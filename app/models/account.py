@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from sqlalchemy import String, DateTime, ForeignKey, func, Column
-from sqlalchemy.dialects.postgresql import UUID
+from app.db.guid import GUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from typing import TYPE_CHECKING
@@ -10,9 +10,9 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 class Account(Base):
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     provider = Column(String(255))
-    userId = Column(UUID(as_uuid=True), ForeignKey("user.id"))
+    userId = Column(GUID(), ForeignKey("user.id"))
     providerAccountId = Column(String(255))
     password = Column(String(255))
     createdAt = Column(DateTime, default=func.now())

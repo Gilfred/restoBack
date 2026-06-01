@@ -2,7 +2,7 @@ from datetime import datetime
 import uuid
 from typing import List, TYPE_CHECKING
 from sqlalchemy import String, DateTime, ForeignKey, Boolean, func, Column
-from sqlalchemy.dialects.postgresql import UUID
+from app.db.guid import GUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
@@ -17,11 +17,11 @@ if TYPE_CHECKING:
     from app.models.unite import Unite
 
 class Restaurant(Base):
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     address = Column(String(255), nullable=False)
     phone = Column(String(255), nullable=False)
-    ownerId = Column(UUID(as_uuid=True), ForeignKey("user.id", use_alter=True, name="fk_restaurant_owner"), nullable=False)
+    ownerId = Column(GUID(), ForeignKey("user.id", use_alter=True, name="fk_restaurant_owner"), nullable=False)
     isActive = Column(Boolean, default=True, nullable=False)
     createdAt = Column(DateTime, default=func.now(), nullable=False)
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
