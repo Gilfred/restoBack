@@ -1,15 +1,15 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models import Base
-import os
+from app.core.config import settings
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Use the database URL from settings which handles .env and defaults
+DATABASE_URL = settings.DATABASE_URL_POSTGRES
 
 if not DATABASE_URL:
-    # We raise an informative error rather than hardcoding a default with credentials.
     raise ValueError(
-        "DATABASE_URL is not set. Please set the environment variable, "
-        "for example: export DATABASE_URL=postgresql://user:password@localhost:5432/dbname"
+        "DATABASE_URL_POSTGRES is not set in settings. "
+        "Please check your .env file or environment variables."
     )
 
 engine = create_engine(DATABASE_URL)
