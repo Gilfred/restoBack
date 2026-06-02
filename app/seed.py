@@ -59,5 +59,5 @@ def seed_data():
 
 if __name__ == "__main__":
     # Ensure tables are created before seeding
-    # create_db_and_tables()
+    create_db_and_tables()
     seed_data()
