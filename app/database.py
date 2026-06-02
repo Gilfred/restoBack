@@ -1,12 +1,16 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 from app.models import Base
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set")
+    # We raise an informative error rather than hardcoding a default with credentials.
+    raise ValueError(
+        "DATABASE_URL is not set. Please set the environment variable, "
+        "for example: export DATABASE_URL=postgresql://user:password@localhost:5432/dbname"
+    )
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
