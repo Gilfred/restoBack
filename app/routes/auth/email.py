@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Body
+from typing import Optional
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_session
-from app.schemas.auth import UserCreate, UserResponse, LoginRequest, ForgotPasswordRequest, ResetPasswordRequest
+from app.schemas.auth import UserCreate, UserResponse, LoginRequest, ForgotPasswordRequest, ResetPasswordRequest, Token
 from app.services import auth_service
 from app.core.security import create_access_token
 from app.dependencies import get_current_user
@@ -20,32 +21,42 @@ def signup(user_data: UserCreate, db: Session = Depends(get_session)):
         )
     return auth_service.create_user(db=db, user_data=user_data)
 
-@router.post("/login")
+@router.post("/login", response_model=Token)
 async def login(
     request: Request,
     response: Response,
+    login_data: Optional[LoginRequest] = Body(None),
+    form_data: OAuth2PasswordRequestForm = Depends(None),
     db: Session = Depends(get_session)
 ):
     # Support both JSON body and Form data (for Swagger UI Authorize button)
-    # Using Request directly to avoid 422 validation errors between different formats
     email = None
     password = None
 
-    content_type = request.headers.get("Content-Type", "")
-    if "application/json" in content_type:
-        try:
-            data = await request.json()
-            email = data.get("email")
-            password = data.get("password")
-        except:
-            pass
-    elif "application/x-www-form-urlencoded" in content_type:
-        try:
-            form_data = await request.form()
-            email = form_data.get("username") # OAuth2 standard uses 'username'
-            password = form_data.get("password")
-        except:
-            pass
+    if login_data:
+        email = login_data.email
+        password = login_data.password
+    elif form_data:
+        email = form_data.username
+        password = form_data.password
+
+    # Manual fallback for robustness
+    if not email:
+        content_type = request.headers.get("Content-Type", "")
+        if "application/json" in content_type:
+            try:
+                data = await request.json()
+                email = data.get("email")
+                password = data.get("password")
+            except:
+                pass
+        elif "application/x-www-form-urlencoded" in content_type:
+            try:
+                form_data = await request.form()
+                email = form_data.get("username")
+                password = form_data.get("password")
+            except:
+                pass
 
     if not email or not password:
          raise HTTPException(
