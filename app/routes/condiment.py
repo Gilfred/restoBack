@@ -26,21 +26,34 @@ def list_condiments(
     return condiment_service.get_condiments(db, restaurant_id)
 
 @router.get("/{condiment_id}", response_model=CondimentResponse)
-def get_condiment(condiment_id: UUID, db: Session = Depends(get_session)):
+def get_condiment(
+    condiment_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     db_condiment = condiment_service.get_condiment(db, condiment_id)
     if not db_condiment:
         raise HTTPException(status_code=404, detail="Condiment not found")
     return db_condiment
 
 @router.put("/{condiment_id}", response_model=CondimentResponse)
-def update_condiment(condiment_id: UUID, condiment_data: CondimentUpdate, db: Session = Depends(get_session)):
+def update_condiment(
+    condiment_id: UUID,
+    condiment_data: CondimentUpdate,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     db_condiment = condiment_service.update_condiment(db, condiment_id, condiment_data)
     if not db_condiment:
         raise HTTPException(status_code=404, detail="Condiment not found")
     return db_condiment
 
 @router.delete("/{condiment_id}")
-def delete_condiment(condiment_id: UUID, db: Session = Depends(get_session)):
+def delete_condiment(
+    condiment_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     if not condiment_service.delete_condiment(db, condiment_id):
         raise HTTPException(status_code=404, detail="Condiment not found")
     return {"message": "Condiment deleted"}

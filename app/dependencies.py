@@ -1,6 +1,8 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
-import jwt
+from joserfc import jwt
+from joserfc.jwk import OctKey
+from joserfc.errors import JoseError
 from sqlalchemy.orm import Session
 from app.database import get_session
 from app.core.config import settings
@@ -27,15 +29,17 @@ def get_current_user(
         )
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+        key = OctKey.import_key(settings.SECRET_KEY)
+        token_obj = jwt.decode(token, key, algorithms=[ALGORITHM])
+        claims = token_obj.claims
+        user_id: str = claims.get("sub")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    except jwt.PyJWTError:
+    except JoseError:
         # Fallback to session token check for backward compatibility (if needed)
         # Or just raise unauthorized
         session = auth_service.get_session_by_token(db, token)

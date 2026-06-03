@@ -25,21 +25,34 @@ def list_appros(
     return appro_cuisine_service.get_appro_cuisines(db)
 
 @router.get("/{appro_id}", response_model=ApproCuisineResponse)
-def get_appro(appro_id: UUID, db: Session = Depends(get_session)):
+def get_appro(
+    appro_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     db_appro = appro_cuisine_service.get_appro_cuisine(db, appro_id)
     if not db_appro:
         raise HTTPException(status_code=404, detail="ApproCuisine not found")
     return db_appro
 
 @router.put("/{appro_id}", response_model=ApproCuisineResponse)
-def update_appro(appro_id: UUID, appro_data: ApproCuisineUpdate, db: Session = Depends(get_session)):
+def update_appro(
+    appro_id: UUID,
+    appro_data: ApproCuisineUpdate,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     db_appro = appro_cuisine_service.update_appro_cuisine(db, appro_id, appro_data)
     if not db_appro:
         raise HTTPException(status_code=404, detail="ApproCuisine not found")
     return db_appro
 
 @router.delete("/{appro_id}")
-def delete_appro(appro_id: UUID, db: Session = Depends(get_session)):
+def delete_appro(
+    appro_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     if not appro_cuisine_service.delete_appro_cuisine(db, appro_id):
         raise HTTPException(status_code=404, detail="ApproCuisine not found")
     return {"message": "ApproCuisine deleted"}

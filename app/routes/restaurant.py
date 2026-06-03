@@ -17,5 +17,8 @@ def create_new_restaurant(
     return restaurant_service.create_restaurant(db, restaurant_data, current_user.id)
 
 @router.get("/", response_model=List[RestaurantResponse])
-def list_restaurants(db: Session = Depends(get_session)):
+def list_restaurants(
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     return restaurant_service.get_all_restaurants(db)

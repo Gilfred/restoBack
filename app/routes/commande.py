@@ -26,21 +26,34 @@ def list_commandes(
     return commande_service.get_commandes(db, restaurant_id)
 
 @router.get("/{commande_id}", response_model=CommandeResponse)
-def get_commande(commande_id: UUID, db: Session = Depends(get_session)):
+def get_commande(
+    commande_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     db_commande = commande_service.get_commande(db, commande_id)
     if not db_commande:
         raise HTTPException(status_code=404, detail="Commande not found")
     return db_commande
 
 @router.put("/{commande_id}", response_model=CommandeResponse)
-def update_commande(commande_id: UUID, commande_data: CommandeUpdate, db: Session = Depends(get_session)):
+def update_commande(
+    commande_id: UUID,
+    commande_data: CommandeUpdate,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     db_commande = commande_service.update_commande(db, commande_id, commande_data)
     if not db_commande:
         raise HTTPException(status_code=404, detail="Commande not found")
     return db_commande
 
 @router.delete("/{commande_id}")
-def delete_commande(commande_id: UUID, db: Session = Depends(get_session)):
+def delete_commande(
+    commande_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     if not commande_service.delete_commande(db, commande_id):
         raise HTTPException(status_code=404, detail="Commande not found")
     return {"message": "Commande deleted"}
