@@ -22,7 +22,7 @@ class Restaurant(Base):
     address = Column(String(255), nullable=False)
     phone = Column(String(255), nullable=False)
     ownerId = Column(UUID(as_uuid=True), ForeignKey("user.id", use_alter=True, name="fk_restaurant_owner"), nullable=False)
-    isActive = Column(Boolean, default=True, nullable=False)
+    isActive = Column(Boolean, default=False, nullable=False)
     createdAt = Column(DateTime, default=func.now(), nullable=False)
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
