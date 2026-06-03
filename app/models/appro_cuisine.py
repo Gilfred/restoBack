@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
-from sqlalchemy import DateTime, ForeignKey, Float, func, Column
-from sqlalchemy import UUID
+from sqlalchemy import DateTime, ForeignKey, Float, func, Column, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 from typing import TYPE_CHECKING
@@ -16,6 +16,7 @@ class ApproCuisine(Base):
     uniteId = Column(UUID(as_uuid=True), ForeignKey("unite.id"))
     prix = Column(Float)
     qte = Column(Float)
+    isActive = Column(Boolean, default=True, nullable=False)
     createdAt = Column(DateTime, default=func.now())
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
