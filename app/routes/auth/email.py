@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_session
 from app.schemas.auth import UserCreate, UserResponse, LoginRequest, ForgotPasswordRequest, ResetPasswordRequest
@@ -20,12 +21,38 @@ def signup(user_data: UserCreate, db: Session = Depends(get_session)):
     return auth_service.create_user(db=db, user_data=user_data)
 
 @router.post("/login")
-def login(
-    login_data: LoginRequest,
+async def login(
+    request: Request,
     response: Response,
     db: Session = Depends(get_session)
 ):
-    user = auth_service.authenticate_user(db, login_data.email, login_data.password)
+    # Manually check content type to support both JSON and Form data (for Swagger UI)
+    content_type = request.headers.get("Content-Type", "")
+    email = None
+    password = None
+
+    if "application/json" in content_type:
+        try:
+            data = await request.json()
+            email = data.get("email")
+            password = data.get("password")
+        except:
+            pass
+    elif "application/x-www-form-urlencoded" in content_type:
+        try:
+            form_data = await request.form()
+            email = form_data.get("username") # Swagger uses 'username'
+            password = form_data.get("password")
+        except:
+            pass
+
+    if not email or not password:
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email and password are required"
+        )
+
+    user = auth_service.authenticate_user(db, email, password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -53,13 +80,13 @@ def login(
 
 @router.post("/logout")
 def logout(
-    request: Request,
     response: Response,
+    current_user = Depends(get_current_user),
     db: Session = Depends(get_session)
 ):
-    token = request.cookies.get("session_token")
-    if token:
-        auth_service.delete_session(db, token)
+    # If using DB sessions, delete them for this user
+    # For pure JWT, we just delete the cookie
+    auth_service.delete_all_user_sessions(db, current_user.id)
     
     response.delete_cookie("session_token")
     return {"message": "Successfully logged out"}

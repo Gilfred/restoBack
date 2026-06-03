@@ -95,6 +95,11 @@ def delete_session(db: Session, token: str):
         db.commit()
     return True
 
+def delete_all_user_sessions(db: Session, user_id: uuid.UUID):
+    db.query(UserSession).filter(UserSession.userId == user_id).delete()
+    db.commit()
+    return True
+
 def create_password_reset_token(db: Session, email: str):
     token = str(uuid.uuid4())
     expire = datetime.now(timezone.utc) + timedelta(hours=1)

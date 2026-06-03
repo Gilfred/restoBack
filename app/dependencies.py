@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+import uuid
 from joserfc import jwt
 from joserfc.jwk import OctKey
 from joserfc.errors import JoseError
@@ -32,14 +33,15 @@ def get_current_user(
         key = OctKey.import_key(settings.SECRET_KEY)
         token_obj = jwt.decode(token, key, algorithms=[ALGORITHM])
         claims = token_obj.claims
-        user_id: str = claims.get("sub")
-        if user_id is None:
+        user_id_str: str = claims.get("sub")
+        if user_id_str is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    except JoseError:
+        user_id = uuid.UUID(user_id_str)
+    except (JoseError, ValueError):
         # Fallback to session token check for backward compatibility (if needed)
         # Or just raise unauthorized
         session = auth_service.get_session_by_token(db, token)
