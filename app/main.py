@@ -7,6 +7,10 @@ from app.routes.auth.email import router as email_auth_router
 from app.routes.restaurant import router as restaurant_router
 from app.routes.role import router as role_router
 from app.routes.permission import router as permission_router
+from app.routes.condiment import router as condiment_router
+from app.routes.appro_cuisine import router as appro_cuisine_router
+from app.routes.appro_boisson import router as appro_boisson_router
+from app.routes.commande import router as commande_router
 import os
 
 #create FastAPI app
@@ -27,6 +31,10 @@ app.include_router(email_auth_router, prefix="/auth", tags=["email-authenticatio
 app.include_router(restaurant_router, prefix="/restaurants", tags=["restaurants"])
 app.include_router(role_router, prefix="/roles", tags=["roles"])
 app.include_router(permission_router, prefix="/permissions", tags=["permissions"])
+app.include_router(condiment_router, prefix="/condiments", tags=["condiments"])
+app.include_router(appro_cuisine_router, prefix="/appro-cuisine", tags=["appro-cuisine"])
+app.include_router(appro_boisson_router, prefix="/appro-boisson", tags=["appro-boisson"])
+app.include_router(commande_router, prefix="/commandes", tags=["commandes"])
 
 @app.on_event("startup")
 def on_startup():
