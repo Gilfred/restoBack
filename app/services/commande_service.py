@@ -26,10 +26,10 @@ def create_commande(db: Session, commande_data: CommandeCreate):
     return db_commande
 
 def get_commandes(db: Session, restaurant_id: UUID):
-    return db.query(Commande).filter(Commande.restaurantId == restaurant_id).all()
+    return db.query(Commande).filter(Commande.restaurantId == restaurant_id, Commande.isActive == True).all()
 
 def get_commande(db: Session, commande_id: UUID):
-    return db.query(Commande).filter(Commande.id == commande_id).first()
+    return db.query(Commande).filter(Commande.id == commande_id, Commande.isActive == True).first()
 
 def update_commande(db: Session, commande_id: UUID, commande_data: CommandeUpdate):
     db_commande = get_commande(db, commande_id)
@@ -43,8 +43,6 @@ def update_commande(db: Session, commande_id: UUID, commande_data: CommandeUpdat
 def delete_commande(db: Session, commande_id: UUID):
     db_commande = get_commande(db, commande_id)
     if db_commande:
-        # Cascade delete is usually handled by DB or relationship, but let's be explicit if needed
-        # In this project, let's assume standard behavior.
-        db.delete(db_commande)
+        db_commande.isActive = False
         db.commit()
     return db_commande

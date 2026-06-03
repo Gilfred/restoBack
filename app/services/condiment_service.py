@@ -11,10 +11,10 @@ def create_condiment(db: Session, condiment_data: CondimentCreate):
     return db_condiment
 
 def get_condiments(db: Session, restaurant_id: UUID):
-    return db.query(Condiment).filter(Condiment.restaurantId == restaurant_id).all()
+    return db.query(Condiment).filter(Condiment.restaurantId == restaurant_id, Condiment.isActive == True).all()
 
 def get_condiment(db: Session, condiment_id: UUID):
-    return db.query(Condiment).filter(Condiment.id == condiment_id).first()
+    return db.query(Condiment).filter(Condiment.id == condiment_id, Condiment.isActive == True).first()
 
 def update_condiment(db: Session, condiment_id: UUID, condiment_data: CondimentUpdate):
     db_condiment = get_condiment(db, condiment_id)
@@ -28,6 +28,6 @@ def update_condiment(db: Session, condiment_id: UUID, condiment_data: CondimentU
 def delete_condiment(db: Session, condiment_id: UUID):
     db_condiment = get_condiment(db, condiment_id)
     if db_condiment:
-        db.delete(db_condiment)
+        db_condiment.isActive = False
         db.commit()
     return db_condiment

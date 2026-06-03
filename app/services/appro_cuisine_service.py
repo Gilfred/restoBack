@@ -11,10 +11,10 @@ def create_appro_cuisine(db: Session, appro_data: ApproCuisineCreate):
     return db_appro
 
 def get_appro_cuisines(db: Session):
-    return db.query(ApproCuisine).all()
+    return db.query(ApproCuisine).filter(ApproCuisine.isActive == True).all()
 
 def get_appro_cuisine(db: Session, appro_id: UUID):
-    return db.query(ApproCuisine).filter(ApproCuisine.id == appro_id).first()
+    return db.query(ApproCuisine).filter(ApproCuisine.id == appro_id, ApproCuisine.isActive == True).first()
 
 def update_appro_cuisine(db: Session, appro_id: UUID, appro_data: ApproCuisineUpdate):
     db_appro = get_appro_cuisine(db, appro_id)
@@ -28,6 +28,6 @@ def update_appro_cuisine(db: Session, appro_id: UUID, appro_data: ApproCuisineUp
 def delete_appro_cuisine(db: Session, appro_id: UUID):
     db_appro = get_appro_cuisine(db, appro_id)
     if db_appro:
-        db.delete(db_appro)
+        db_appro.isActive = False
         db.commit()
     return db_appro

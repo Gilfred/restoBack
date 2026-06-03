@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from sqlalchemy import DateTime, ForeignKey, Float, Integer, func, Column
+from sqlalchemy import DateTime, ForeignKey, Float, Integer, func, Column, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
@@ -16,6 +16,7 @@ class ApproBoisson(Base):
     casierId = Column(UUID(as_uuid=True), ForeignKey("casier.id"))
     prixAchat = Column(Float)
     nbreCasier = Column(Integer)
+    isActive = Column(Boolean, default=True, nullable=False)
     createdAt = Column(DateTime, default=func.now())
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
