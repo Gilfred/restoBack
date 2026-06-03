@@ -1,4 +1,4 @@
-from sqlmodel import Session, select
+from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.account import Account
 from app.models.session import Session as UserSession
@@ -8,7 +8,7 @@ import uuid
 from app.core.security import get_password_hash, verify_password
 
 def get_or_create_user_google(db: Session, email: str, name: str, picture: str, provider_account_id: str):
-    user = db.exec(select(User).where(User.email == email)).first()
+    user = db.query(User).filter(User.email == email).first()
     
     if not user:
         user = User(
@@ -23,12 +23,10 @@ def get_or_create_user_google(db: Session, email: str, name: str, picture: str, 
         db.refresh(user)
     
     # Check if Account already exists
-    account = db.exec(
-        select(Account).where(
+    account = db.query(Account).filter(
             Account.provider == "google",
             Account.providerAccountId == provider_account_id
-        )
-    ).first()
+        ).first()
     
     if not account:
         account = Account(
@@ -54,7 +52,7 @@ def create_user(db: Session, user_data):
     return db_user
 
 def get_user_by_email(db: Session, email: str):
-    return db.exec(select(User).where(User.email == email)).first()
+    return db.query(User).filter(User.email == email).first()
 
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
@@ -82,15 +80,13 @@ def create_user_session(db: Session, user_id: uuid.UUID, expires_delta: timedelt
     return db_session
 
 def get_session_by_token(db: Session, token: str):
-    return db.exec(
-        select(UserSession).where(
+    return db.query(UserSession).filter(
             UserSession.token == token,
             UserSession.expiresAt > datetime.now(timezone.utc)
-        )
-    ).first()
+        ).first()
 
 def delete_session(db: Session, token: str):
-    session = db.exec(select(UserSession).where(UserSession.token == token)).first()
+    session = db.query(UserSession).filter(UserSession.token == token).first()
     if session:
         db.delete(session)
         db.commit()
@@ -110,12 +106,10 @@ def create_password_reset_token(db: Session, email: str):
     return token
 
 def reset_password(db: Session, token: str, new_password: str):
-    verification = db.exec(
-        select(Verification).where(
+    verification = db.query(Verification).filter(
             Verification.value == token,
             Verification.expiresAt > datetime.now(timezone.utc)
-        )
-    ).first()
+        ).first()
     
     if not verification:
         return False
