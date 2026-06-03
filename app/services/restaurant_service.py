@@ -16,3 +16,6 @@ def create_restaurant(db: Session, restaurant_data: RestaurantCreate, owner_id: 
 
 def get_restaurant(db: Session, restaurant_id: UUID):
     return db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+
+def get_all_restaurants(db: Session):
+    return db.query(Restaurant).all()
