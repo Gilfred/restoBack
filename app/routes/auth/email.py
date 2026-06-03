@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.database import get_session
 from app.schemas.auth import UserCreate, UserResponse, LoginRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.services import auth_service
+from app.core.security import create_access_token
+from app.dependencies import get_current_user
 from datetime import timedelta
 
 router = APIRouter()
@@ -31,12 +33,15 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    access_token = create_access_token(subject=user.id)
+
+    # Keep session for backward compatibility or extra security if needed
     session = auth_service.create_user_session(db, user_id=user.id)
     
     # We can use both a cookie and return the token
     response.set_cookie(
         key="session_token",
-        value=session.token,
+        value=access_token,
         httponly=True,
         max_age=7 * 24 * 60 * 60,
         expires=7 * 24 * 60 * 60,
@@ -44,7 +49,7 @@ def login(
         secure=False, # Should be True in production with HTTPS
     )
     
-    return {"access_token": session.token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/logout")
 def logout(
@@ -60,31 +65,8 @@ def logout(
     return {"message": "Successfully logged out"}
 
 @router.get("/me", response_model=UserResponse)
-def get_me(
-    request: Request,
-    db: Session = Depends(get_session)
-):
-    # Try to get token from header or cookie
-    token = request.cookies.get("session_token")
-    auth_header = request.headers.get("Authorization")
-    
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    
-    session = auth_service.get_session_by_token(db, token)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid session"
-        )
-    
-    return session.user
+def get_me(current_user = Depends(get_current_user)):
+    return current_user
 
 @router.post("/forgot-password")
 def forgot_password(

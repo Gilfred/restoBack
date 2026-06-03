@@ -5,15 +5,23 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.appro_boisson import ApproBoissonCreate, ApproBoissonUpdate, ApproBoissonResponse
 from app.services import appro_boisson_service
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
 @router.post("/", response_model=ApproBoissonResponse)
-def create_appro(appro_data: ApproBoissonCreate, db: Session = Depends(get_session)):
+def create_appro(
+    appro_data: ApproBoissonCreate,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     return appro_boisson_service.create_appro_boisson(db, appro_data)
 
 @router.get("/", response_model=List[ApproBoissonResponse])
-def list_appros(db: Session = Depends(get_session)):
+def list_appros(
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     return appro_boisson_service.get_appro_boissons(db)
 
 @router.get("/{appro_id}", response_model=ApproBoissonResponse)

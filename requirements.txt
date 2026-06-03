@@ -12,3 +12,4 @@ email-validator
 httpx
 authlib
 python-multipart
+PyJWT

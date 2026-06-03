@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Request
 from app.providers.google import oauth
-from app.services.auth_service import get_or_create_user_google
+from app.services.auth_service import get_or_create_user_google, create_user_session
 from app.database import get_session
 from sqlalchemy.orm import Session
 from app.core.config import settings
+from app.core.security import create_access_token
+from fastapi import Response
 
 router = APIRouter()
 
@@ -13,7 +15,7 @@ async def google_login(request: Request):
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @router.get("/google/callback")
-async def google_callback(request: Request, db: Session = Depends(get_session)):
+async def google_callback(request: Request, response: Response, db: Session = Depends(get_session)):
     token = await oauth.google.authorize_access_token(request)
     user_info = token.get('userinfo')
     if user_info:
@@ -24,8 +26,26 @@ async def google_callback(request: Request, db: Session = Depends(get_session)):
             picture=user_info['picture'],
             provider_account_id=user_info['sub']
         )
-        # Here you would typically create a session or JWT for the user
-        # For now, let's just return the user info or a success message
-        return {"status": "success", "user": {"email": user.email, "name": user.name}}
+        access_token = create_access_token(subject=user.id)
+
+        # Create a session for consistency
+        create_user_session(db, user_id=user.id)
+
+        response.set_cookie(
+            key="session_token",
+            value=access_token,
+            httponly=True,
+            max_age=7 * 24 * 60 * 60,
+            expires=7 * 24 * 60 * 60,
+            samesite="lax",
+            secure=False,
+        )
+
+        return {
+            "status": "success",
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {"email": user.email, "name": user.name}
+        }
     
     return {"status": "error", "message": "Failed to fetch user info"}

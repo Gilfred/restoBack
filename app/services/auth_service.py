@@ -5,7 +5,10 @@ from app.models.session import Session as UserSession
 from app.models.verification import Verification
 from datetime import datetime, timedelta, timezone
 import uuid
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash, verify_password, create_access_token
+
+def get_user_by_id(db: Session, user_id: uuid.UUID):
+    return db.query(User).filter(User.id == user_id).first()
 
 def get_or_create_user_google(db: Session, email: str, name: str, picture: str, provider_account_id: str):
     user = db.query(User).filter(User.email == email).first()

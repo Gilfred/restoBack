@@ -5,15 +5,23 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.appro_cuisine import ApproCuisineCreate, ApproCuisineUpdate, ApproCuisineResponse
 from app.services import appro_cuisine_service
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
 @router.post("/", response_model=ApproCuisineResponse)
-def create_appro(appro_data: ApproCuisineCreate, db: Session = Depends(get_session)):
+def create_appro(
+    appro_data: ApproCuisineCreate,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     return appro_cuisine_service.create_appro_cuisine(db, appro_data)
 
 @router.get("/", response_model=List[ApproCuisineResponse])
-def list_appros(db: Session = Depends(get_session)):
+def list_appros(
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     return appro_cuisine_service.get_appro_cuisines(db)
 
 @router.get("/{appro_id}", response_model=ApproCuisineResponse)

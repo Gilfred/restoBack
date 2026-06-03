@@ -5,15 +5,24 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.commande import CommandeCreate, CommandeUpdate, CommandeResponse
 from app.services import commande_service
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
 @router.post("/", response_model=CommandeResponse)
-def create_commande(commande_data: CommandeCreate, db: Session = Depends(get_session)):
+def create_commande(
+    commande_data: CommandeCreate,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     return commande_service.create_commande(db, commande_data)
 
 @router.get("/restaurant/{restaurant_id}", response_model=List[CommandeResponse])
-def list_commandes(restaurant_id: UUID, db: Session = Depends(get_session)):
+def list_commandes(
+    restaurant_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
     return commande_service.get_commandes(db, restaurant_id)
 
 @router.get("/{commande_id}", response_model=CommandeResponse)
