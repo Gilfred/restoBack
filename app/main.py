@@ -11,6 +11,9 @@ from app.routes.condiment import router as condiment_router
 from app.routes.appro_cuisine import router as appro_cuisine_router
 from app.routes.appro_boisson import router as appro_boisson_router
 from app.routes.commande import router as commande_router
+from app.routes.unite import router as unite_router
+from app.routes.casier import router as casier_router
+from app.routes.commande_article import router as commande_article_router
 import os
 
 #create FastAPI app
@@ -35,6 +38,9 @@ app.include_router(condiment_router, prefix="/condiments", tags=["condiments"])
 app.include_router(appro_cuisine_router, prefix="/appro-cuisine", tags=["appro-cuisine"])
 app.include_router(appro_boisson_router, prefix="/appro-boisson", tags=["appro-boisson"])
 app.include_router(commande_router, prefix="/commandes", tags=["commandes"])
+app.include_router(unite_router, prefix="/unites", tags=["unites"])
+app.include_router(casier_router, prefix="/casiers", tags=["casiers"])
+app.include_router(commande_article_router, prefix="/commande-articles", tags=["commande-articles"])
 
 @app.on_event("startup")
 def on_startup():

@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from sqlalchemy import DateTime, ForeignKey, Float, Integer, func, Column
+from sqlalchemy import DateTime, ForeignKey, Float, Integer, func, Column, Boolean
 from sqlalchemy import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
@@ -17,6 +17,7 @@ class CommandeArticle(Base):
     qte = Column(Integer)
     prixUnitaire = Column(Float)
     sousTotal = Column(Float)
+    isActive = Column(Boolean, default=True, nullable=False)
     createdAt = Column(DateTime, default=func.now())
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 

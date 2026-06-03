@@ -17,6 +17,13 @@ class CommandeArticleResponse(CommandeArticleBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     sousTotal: float
+    isActive: bool
+
+class CommandeArticleUpdate(BaseModel):
+    boissonId: Optional[UUID] = None
+    repasId: Optional[UUID] = None
+    qte: Optional[int] = None
+    prixUnitaire: Optional[float] = None
 
 class CommandeBase(BaseModel):
     restaurantId: UUID

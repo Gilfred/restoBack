@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 from typing import List, TYPE_CHECKING
-from sqlalchemy import DateTime, ForeignKey, func, Enum, Column
+from sqlalchemy import DateTime, ForeignKey, func, Enum, Column, Boolean
 from sqlalchemy import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
@@ -15,6 +15,7 @@ class Casier(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     typeCasier = Column(Enum(CasierType))
     restaurantId = Column(UUID(as_uuid=True), ForeignKey("restaurant.id"))
+    isActive = Column(Boolean, default=True, nullable=False)
     createdAt = Column(DateTime, default=func.now())
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
