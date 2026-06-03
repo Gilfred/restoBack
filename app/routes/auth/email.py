@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Body
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database import get_session
@@ -26,11 +26,12 @@ async def login(
     response: Response,
     db: Session = Depends(get_session)
 ):
-    # Manually check content type to support both JSON and Form data (for Swagger UI)
-    content_type = request.headers.get("Content-Type", "")
+    # Support both JSON body and Form data (for Swagger UI Authorize button)
+    # Using Request directly to avoid 422 validation errors between different formats
     email = None
     password = None
 
+    content_type = request.headers.get("Content-Type", "")
     if "application/json" in content_type:
         try:
             data = await request.json()
@@ -41,7 +42,7 @@ async def login(
     elif "application/x-www-form-urlencoded" in content_type:
         try:
             form_data = await request.form()
-            email = form_data.get("username") # Swagger uses 'username'
+            email = form_data.get("username") # OAuth2 standard uses 'username'
             password = form_data.get("password")
         except:
             pass
