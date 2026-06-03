@@ -54,7 +54,7 @@ def create_user(db: Session, user_data):
     return db_user
 
 def get_user_by_email(db: Session, email: str):
-    return db.exec(select(User).where(User.email == email)).first()
+    return db.execute(select(User).where(User.email == email)).first()
 
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
