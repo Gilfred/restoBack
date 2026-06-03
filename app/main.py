@@ -18,7 +18,7 @@ import os
 
 #create FastAPI app
 app = FastAPI(
-    title= "Application de gestion des activités ",
+    title= "Gilexis Business Suite ",
     description= "Application d'organisation et de gestion des Bar, Restaurant et Dépôt de livraison boisson",
     version= "1.0.0",
     docs_url="/docs",
@@ -49,4 +49,9 @@ def on_startup():
 
 @app.get("/")
 def home():
-    return {"message": "Hello FastAPI", "status": "Database initialized and seeded"}
+    return {"message": "Bienvenus sur Gilexis Business", 
+            "status": "Database initialized and seeded",
+            "documetation":"docs",
+            "version": "1.0.0",
+            'alternative':"redocs"
+            }
