@@ -11,7 +11,7 @@ from app.core.security import ALGORITHM
 from app.services import auth_service
 from app.models.user import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 def get_current_user(
     request: Request,

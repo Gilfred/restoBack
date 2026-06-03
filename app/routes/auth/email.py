@@ -22,73 +22,33 @@ def signup(user_data: UserCreate, db: Session = Depends(get_session)):
     return auth_service.create_user(db=db, user_data=user_data)
 
 @router.post("/login", response_model=Token)
-async def login(
-    request: Request,
+def login(
+    login_data: LoginRequest,
     response: Response,
-    login_data: Optional[LoginRequest] = Body(None),
-    form_data: OAuth2PasswordRequestForm = Depends(None),
     db: Session = Depends(get_session)
 ):
-    # Support both JSON body and Form data (for Swagger UI Authorize button)
-    email = None
-    password = None
-
-    if login_data:
-        email = login_data.email
-        password = login_data.password
-    elif form_data:
-        email = form_data.username
-        password = form_data.password
-
-    # Manual fallback for robustness
-    if not email:
-        content_type = request.headers.get("Content-Type", "")
-        if "application/json" in content_type:
-            try:
-                data = await request.json()
-                email = data.get("email")
-                password = data.get("password")
-            except:
-                pass
-        elif "application/x-www-form-urlencoded" in content_type:
-            try:
-                form_data = await request.form()
-                email = form_data.get("username")
-                password = form_data.get("password")
-            except:
-                pass
-
-    if not email or not password:
-         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email and password are required"
+    user = auth_service.authenticate_user(db, login_data.email, login_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
         )
+    return auth_service.login_user(db, user, response)
 
-    user = auth_service.authenticate_user(db, email, password)
+@router.post("/token", include_in_schema=False)
+def login_for_access_token(
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_session)
+):
+    user = auth_service.authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    access_token = create_access_token(subject=user.id)
-
-    # Keep session for backward compatibility or extra security if needed
-    session = auth_service.create_user_session(db, user_id=user.id)
-    
-    # We can use both a cookie and return the token
-    response.set_cookie(
-        key="session_token",
-        value=access_token,
-        httponly=True,
-        max_age=7 * 24 * 60 * 60,
-        expires=7 * 24 * 60 * 60,
-        samesite="lax",
-        secure=False, # Should be True in production with HTTPS
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    return auth_service.login_user(db, user, response)
 
 @router.post("/logout")
 def logout(

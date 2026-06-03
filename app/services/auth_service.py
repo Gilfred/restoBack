@@ -6,6 +6,7 @@ from app.models.verification import Verification
 from datetime import datetime, timedelta, timezone
 import uuid
 from app.core.security import get_password_hash, verify_password, create_access_token
+from fastapi import Response
 
 def get_user_by_id(db: Session, user_id: uuid.UUID):
     return db.query(User).filter(User.id == user_id).first()
@@ -99,6 +100,24 @@ def delete_all_user_sessions(db: Session, user_id: uuid.UUID):
     db.query(UserSession).filter(UserSession.userId == user_id).delete()
     db.commit()
     return True
+
+def login_user(db: Session, user, response: Response):
+    access_token = create_access_token(subject=user.id)
+
+    # Keep session for backward compatibility
+    create_user_session(db, user_id=user.id)
+
+    response.set_cookie(
+        key="session_token",
+        value=access_token,
+        httponly=True,
+        max_age=7 * 24 * 60 * 60,
+        expires=7 * 24 * 60 * 60,
+        samesite="lax",
+        secure=False,
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
 
 def create_password_reset_token(db: Session, email: str):
     token = str(uuid.uuid4())
