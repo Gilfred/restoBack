@@ -62,3 +62,11 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+def require_superadmin(current_user: User = Depends(get_current_user)) -> User:
+    if not any(role.name == "superAdmin" for role in current_user.roles):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seul le superAdmin peut effectuer cette action"
+        )
+    return current_user

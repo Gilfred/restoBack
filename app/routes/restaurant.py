@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.restaurant import RestaurantCreate, RestaurantResponse
 from app.services import restaurant_service
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_superadmin
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ def list_restaurants(
 @router.get("/inactive", response_model=List[RestaurantResponse])
 def list_inactive_restaurants(
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(require_superadmin)
 ):
     return restaurant_service.get_inactive_restaurants(db)
 
@@ -35,7 +35,7 @@ def list_inactive_restaurants(
 def activate_restaurant(
     restaurant_id: UUID,
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(require_superadmin)
 ):
     restaurant = restaurant_service.activate_restaurant(db, restaurant_id)
     if not restaurant:
