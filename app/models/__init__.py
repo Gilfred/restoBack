@@ -7,6 +7,7 @@ from app.models.session import Session
 from app.models.account import Account
 from app.models.verification import Verification
 from app.models.restaurant import Restaurant
+from app.models.restaurant_activation_history import RestaurantActivationHistory
 from app.models.boisson import Boisson
 from app.models.repas import Repas
 from app.models.casier import Casier

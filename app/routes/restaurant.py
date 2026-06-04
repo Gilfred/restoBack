@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 from app.database import get_session
 from app.schemas.restaurant import RestaurantCreate, RestaurantResponse
 from app.services import restaurant_service
@@ -22,3 +23,21 @@ def list_restaurants(
     current_user = Depends(get_current_user)
 ):
     return restaurant_service.get_all_restaurants(db)
+
+@router.get("/inactive", response_model=List[RestaurantResponse])
+def list_inactive_restaurants(
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
+    return restaurant_service.get_inactive_restaurants(db)
+
+@router.post("/{restaurant_id}/activate", response_model=RestaurantResponse)
+def activate_restaurant(
+    restaurant_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
+    restaurant = restaurant_service.activate_restaurant(db, restaurant_id)
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    return restaurant
