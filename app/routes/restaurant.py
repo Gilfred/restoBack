@@ -4,6 +4,7 @@ from typing import List
 from uuid import UUID
 from app.database import get_session
 from app.schemas.restaurant import RestaurantCreate, RestaurantResponse
+from app.schemas.restaurant_activation_history import RestaurantActivationHistoryResponse
 from app.services import restaurant_service
 from app.dependencies import get_current_user, require_superadmin
 
@@ -41,3 +42,10 @@ def activate_restaurant(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     return restaurant
+
+@router.get("/activation-history", response_model=List[RestaurantActivationHistoryResponse])
+def get_activation_history(
+    db: Session = Depends(get_session),
+    current_user = Depends(require_superadmin)
+):
+    return restaurant_service.get_activation_history(db)
