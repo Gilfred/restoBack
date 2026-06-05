@@ -24,6 +24,6 @@ class CommandeStatut(str, Enum):
     CANCELLED = "cancelled"
 
 class ActivationStatus(str, Enum):
-    PENDING = "pending"
-    ACTIVATED = "activated"
-    REJECTED = "rejected"
+    PENDING = "PENDING"
+    ACTIVATED = "ACTIVATED"
+    REJECTED = "REJECTED"
