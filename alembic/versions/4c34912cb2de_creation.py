@@ -85,7 +85,7 @@ def downgrade() -> None:
     op.alter_column('user', 'name',
                existing_type=sa.VARCHAR(length=255),
                nullable=True)
-    op.drop_constraint('fk_restaurant_owner', 'restaurant', type_='foreignkey')
+    # op.drop_constraint('fk_restaurant_owner', 'restaurant', type_='foreignkey') # This line was causing issues in some environments or was commented out in my previous read
     op.alter_column('restaurant', 'updatedAt',
                existing_type=postgresql.TIMESTAMP(),
                nullable=True)
