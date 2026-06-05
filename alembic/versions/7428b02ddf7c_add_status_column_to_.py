@@ -18,9 +18,17 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
-    # Create the enum type first
+    # Create the enum type first if it doesn't exist
     status_enum = sa.Enum('PENDING', 'ACTIVATED', 'REJECTED', name='activationstatus')
-    status_enum.create(op.get_bind())
+
+    # Check if the type already exists
+    bind = op.get_bind()
+    if bind.dialect.name == 'postgresql':
+        existing_types = bind.execute(sa.text("SELECT n.nspname, t.typname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid WHERE t.typname = 'activationstatus'")).fetchall()
+        if not existing_types:
+            status_enum.create(bind)
+    else:
+        status_enum.create(bind)
 
     # Add the column
     op.add_column('restaurantactivationhistory',
