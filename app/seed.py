@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.database import engine, create_db_and_tables
 from app.models import Role, Permission, User, MethodePayment
 from app.enums import MethodePaiementEnum
+from app.core.security import get_password_hash
 import datetime
 
 def seed_data():
@@ -41,7 +42,7 @@ def seed_data():
             superadmin_user = User(
                 name="Super Admin",
                 email="admin@example.com",
-                password="password123", # In a real app, hash this!
+                password=get_password_hash("password123"),
                 isActive=True
             )
             superadmin_user.roles.append(superadmin_role)
