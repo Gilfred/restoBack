@@ -41,8 +41,8 @@ def seed_data():
         if not superadmin_user:
             superadmin_user = User(
                 name="Super Admin",
-                email="admin@example.com",
-                password=get_password_hash("password123"),
+                email="fredo@gmail.com",
+                password=get_password_hash("gilfredmawulomdgb@gilexis"),
                 isActive=True
             )
             superadmin_user.roles.append(superadmin_role)
