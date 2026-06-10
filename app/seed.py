@@ -37,7 +37,7 @@ def seed_data():
         session.commit()
 
         # 3. Create Superadmin User
-        superadmin_user = session.execute(select(User).where(User.email == "admin@example.com")).scalars().first()
+        superadmin_user = session.execute(select(User).where(User.email == "fredo@gmail.com")).scalars().first()
         if not superadmin_user:
             superadmin_user = User(
                 name="Super Admin",
