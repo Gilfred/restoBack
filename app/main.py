@@ -14,6 +14,7 @@ from app.routes.commande import router as commande_router
 from app.routes.unite import router as unite_router
 from app.routes.casier import router as casier_router
 from app.routes.commande_article import router as commande_article_router
+from app.routes.associations import router as associations_router
 import os
 
 #create FastAPI app
@@ -41,6 +42,7 @@ app.include_router(commande_router, prefix="/commandes", tags=["commandes"])
 app.include_router(unite_router, prefix="/unites", tags=["unites"])
 app.include_router(casier_router, prefix="/casiers", tags=["casiers"])
 app.include_router(commande_article_router, prefix="/commande-articles", tags=["commande-articles"])
+app.include_router(associations_router, prefix="/associations", tags=["associations"])
 
 @app.on_event("startup")
 def on_startup():
