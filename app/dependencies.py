@@ -61,10 +61,23 @@ def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Check if user has an active session in DB
+    # This allows logout to work by deleting sessions
+    active_session = db.query(auth_service.UserSession).filter(
+        auth_service.UserSession.userId == user.id
+    ).first()
+    if not active_session:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expirée ou déconnectée",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return user
 
 def require_superadmin(current_user: User = Depends(get_current_user)) -> User:
-    if not any(role.name == "superAdmin" for role in current_user.roles):
+    if not any(role.name == "SUPERADMIN" for role in current_user.roles):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Seul le superAdmin peut effectuer cette action"
