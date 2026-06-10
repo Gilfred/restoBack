@@ -17,3 +17,11 @@ class RolePermissionResponse(BaseModel):
     permissionId: UUID
     createdAt: datetime
     updatedAt: datetime
+
+class UserRoleCreate(BaseModel):
+    userId: UUID
+    roleId: UUID
+
+class RolePermissionCreate(BaseModel):
+    roleId: UUID
+    permissionId: UUID

@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 import uuid
+from typing import List
 from joserfc import jwt
 from joserfc.jwk import OctKey
 from joserfc.errors import JoseError
@@ -97,3 +98,104 @@ def require_superadmin(
                 detail="Seul le superAdmin peut effectuer cette action"
             )
     return current_user
+
+def require_admin(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+) -> User:
+    """Check if the user is a restaurant ADMIN or a SUPERADMIN."""
+    is_admin = any(role.name.upper() in ["ADMIN", "SUPERADMIN"] for role in current_user.roles if role.name)
+
+    if not is_admin:
+        # Fallback: check database directly
+        from app.models.associations import UserRole
+        from app.models.role import Role
+
+        is_admin = db.query(Role).join(UserRole).filter(
+            UserRole.userId == current_user.id,
+            Role.name.in_(["ADMIN", "SUPERADMIN"])
+        ).first() is not None
+
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé: rôle ADMIN ou SUPERADMIN requis"
+        )
+    return current_user
+
+def restrict_staff_modification(
+    target_user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+) -> User:
+    """
+    Ensure that WAITER and MANAGER_CASHIER cannot modify their own roles/permissions
+    or anyone else's. Only ADMIN or SUPERADMIN can perform these actions.
+    """
+    # SUPERADMIN can do anything
+    if any(role.name.upper() == "SUPERADMIN" for role in current_user.roles if role.name):
+        return current_user
+
+    # ADMIN can modify staff in their restaurant, but not themselves or other ADMINs/SUPERADMINs
+    is_admin = any(role.name.upper() == "ADMIN" for role in current_user.roles if role.name)
+    if is_admin:
+        # Check if target user belongs to the same restaurant
+        target_user = db.query(User).filter(User.id == target_user_id).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Utilisateur cible non trouvé")
+
+        # ADMIN cannot modify themselves or other ADMINs (only SUPERADMIN can manage other ADMINs)
+        is_target_admin = any(role.name.upper() in ["ADMIN", "SUPERADMIN"] for role in target_user.roles if role.name)
+        if is_target_admin:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Un ADMIN ne peut pas modifier ses propres rôles/permissions ou ceux d'un autre ADMIN"
+            )
+
+        if target_user.restaurantId != current_user.restaurantId:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Vous ne pouvez gérer que le personnel de votre propre restaurant"
+            )
+
+        return current_user
+
+    # If not ADMIN or SUPERADMIN, deny access
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Vous n'avez pas la permission de modifier les rôles ou permissions"
+    )
+
+def check_permissions(*required_permissions: str):
+    def permission_checker(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_session)
+    ) -> User:
+        # SUPERADMIN has all permissions
+        if any(role.name.upper() == "SUPERADMIN" for role in current_user.roles if role.name):
+            return current_user
+
+        # Get all permissions for the user's roles
+        user_permissions = set()
+        for role in current_user.roles:
+            for perm in role.permissions:
+                user_permissions.add(perm.name)
+
+        # Fallback: check database directly if needed (in case of lazy loading)
+        if not all(p in user_permissions for p in required_permissions):
+            from app.models.associations import RolePermission, UserRole
+            from app.models.permission import Permission
+            from app.models.role import Role
+
+            db_permissions = db.query(Permission.name).join(RolePermission).join(Role).join(UserRole).filter(
+                UserRole.userId == current_user.id
+            ).all()
+            user_permissions.update([p[0] for p in db_permissions])
+
+        if not all(p in user_permissions for p in required_permissions):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission manquante: {', '.join(required_permissions)}"
+            )
+        return current_user
+    return permission_checker

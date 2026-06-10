@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.appro_cuisine import ApproCuisineCreate, ApproCuisineUpdate, ApproCuisineResponse
 from app.services import appro_cuisine_service
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, check_permissions
 
 router = APIRouter()
 
@@ -13,14 +13,14 @@ router = APIRouter()
 def create_appro(
     appro_data: ApproCuisineCreate,
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(check_permissions("manage_staff"))
 ):
     return appro_cuisine_service.create_appro_cuisine(db, appro_data)
 
 @router.get("/", response_model=List[ApproCuisineResponse])
 def list_appros(
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(check_permissions("view_menu"))
 ):
     return appro_cuisine_service.get_appro_cuisines(db)
 
@@ -28,7 +28,7 @@ def list_appros(
 def get_appro(
     appro_id: UUID,
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(check_permissions("view_menu"))
 ):
     db_appro = appro_cuisine_service.get_appro_cuisine(db, appro_id)
     if not db_appro:
@@ -40,7 +40,7 @@ def update_appro(
     appro_id: UUID,
     appro_data: ApproCuisineUpdate,
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(check_permissions("manage_staff"))
 ):
     db_appro = appro_cuisine_service.update_appro_cuisine(db, appro_id, appro_data)
     if not db_appro:
@@ -51,7 +51,7 @@ def update_appro(
 def delete_appro(
     appro_id: UUID,
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(check_permissions("manage_staff"))
 ):
     if not appro_cuisine_service.delete_appro_cuisine(db, appro_id):
         raise HTTPException(status_code=404, detail="ApproCuisine not found")

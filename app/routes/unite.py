@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.unite import UniteResponse, UniteCreate
 from app.services import unite_service
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, check_permissions
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ router = APIRouter()
 def read_unites(
     restaurant_id: UUID,
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(check_permissions("view_menu"))
 ):
     return unite_service.get_unites(db, restaurant_id)
 
@@ -21,6 +21,6 @@ def read_unites(
 def create_unite(
     unite_data: UniteCreate,
     db: Session = Depends(get_session),
-    current_user = Depends(get_current_user)
+    current_user = Depends(check_permissions("manage_staff"))
 ):
     return unite_service.create_unite(db, unite_data)

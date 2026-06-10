@@ -5,8 +5,10 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.restaurant import RestaurantCreate, RestaurantResponse
 from app.schemas.restaurant_activation_history import RestaurantActivationHistoryResponse
+from app.schemas.auth import UserResponse
 from app.services import restaurant_service
-from app.dependencies import get_current_user, require_superadmin
+from app.dependencies import get_current_user, require_superadmin, check_permissions
+from app.models.user import User
 
 router = APIRouter()
 
@@ -49,3 +51,16 @@ def get_activation_history(
     current_user = Depends(require_superadmin)
 ):
     return restaurant_service.get_activation_history(db)
+
+@router.get("/{restaurant_id}/staff", response_model=List[UserResponse])
+def get_restaurant_staff(
+    restaurant_id: UUID,
+    db: Session = Depends(get_session),
+    current_user = Depends(check_permissions("manage_staff"))
+):
+    # If not SUPERADMIN, ensure ADMIN is only looking at their own restaurant
+    is_superadmin = any(role.name.upper() == "SUPERADMIN" for role in current_user.roles)
+    if not is_superadmin and current_user.restaurantId != restaurant_id:
+        raise HTTPException(status_code=403, detail="Vous ne pouvez consulter que le personnel de votre propre restaurant")
+
+    return db.query(User).filter(User.restaurantId == restaurant_id).all()
