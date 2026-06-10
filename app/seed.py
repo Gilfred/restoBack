@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database import engine, create_db_and_tables
 from app.models import Role, Permission, User, MethodePayment
 from app.enums import MethodePaiementEnum
@@ -21,7 +21,7 @@ def seed_data():
         session.commit()
 
         # 2. Create Roles
-        superadmin_role = session.execute(select(Role).where(Role.name == "SUPERADMIN")).scalars().first()
+        superadmin_role = session.execute(select(Role).where(func.upper(Role.name) == "SUPERADMIN")).scalars().first()
         if not superadmin_role:
             superadmin_role = Role(name="SUPERADMIN", description="Super Administrator with full access")
             # Assign all permissions to superadmin
@@ -36,8 +36,8 @@ def seed_data():
 
         session.commit()
 
-        # 3. Create Superadmin User
-        superadmin_user = session.execute(select(User).where(User.email == "fredo@gmail.com")).scalars().first()
+        # 3. Create/Update Superadmin User
+        superadmin_user = session.execute(select(User).where(func.lower(User.email) == "fredo@gmail.com")).scalars().first()
         if not superadmin_user:
             superadmin_user = User(
                 name="Super Admin",
@@ -45,8 +45,11 @@ def seed_data():
                 password=get_password_hash("gilfredmawulomdgb@gilexis"),
                 isActive=True
             )
-            superadmin_user.roles.append(superadmin_role)
             session.add(superadmin_user)
+
+        if superadmin_role not in superadmin_user.roles:
+            superadmin_user.roles.append(superadmin_role)
+
         session.commit()
 
         # 4. Create Payment Methods
