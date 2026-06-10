@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.user import User
 from app.models.account import Account
 from app.models.session import Session as UserSession
@@ -9,7 +9,7 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from fastapi import Response
 
 def get_user_by_id(db: Session, user_id: uuid.UUID):
-    return db.query(User).filter(User.id == user_id).first()
+    return db.query(User).options(joinedload(User.roles)).filter(User.id == user_id).first()
 
 def get_or_create_user_google(db: Session, email: str, name: str, picture: str, provider_account_id: str):
     user = db.query(User).filter(User.email == email).first()
@@ -56,7 +56,7 @@ def create_user(db: Session, user_data):
     return db_user
 
 def get_user_by_email(db: Session, email: str):
-    return db.query(User).filter(User.email == email).first()
+    return db.query(User).options(joinedload(User.roles)).filter(User.email == email).first()
 
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
@@ -84,7 +84,9 @@ def create_user_session(db: Session, user_id: uuid.UUID, expires_delta: timedelt
     return db_session
 
 def get_session_by_token(db: Session, token: str):
-    return db.query(UserSession).filter(
+    return db.query(UserSession).options(
+        joinedload(UserSession.user).joinedload(User.roles)
+    ).filter(
         UserSession.token == token,
         UserSession.expiresAt > datetime.now(timezone.utc)
     ).first()
