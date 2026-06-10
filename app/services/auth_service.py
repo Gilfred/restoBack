@@ -104,7 +104,9 @@ def delete_all_user_sessions(db: Session, user_id: uuid.UUID):
 def login_user(db: Session, user, response: Response):
     access_token = create_access_token(subject=user.id)
 
-    # Keep session for backward compatibility
+    # Delete existing sessions to ensure only one active session (optional, but good for logout logic)
+    delete_all_user_sessions(db, user.id)
+    # Keep session for backward compatibility and to support logout
     create_user_session(db, user_id=user.id)
 
     response.set_cookie(

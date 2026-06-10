@@ -28,7 +28,9 @@ async def google_callback(request: Request, response: Response, db: Session = De
         )
         access_token = create_access_token(subject=user.id)
 
-        # Create a session for consistency
+        # Create a session for consistency and logout support
+        from app.services.auth_service import delete_all_user_sessions
+        delete_all_user_sessions(db, user.id)
         create_user_session(db, user_id=user.id)
 
         response.set_cookie(
