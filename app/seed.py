@@ -78,7 +78,8 @@ def seed_data():
             )
             session.add(superadmin_user)
 
-        if superadmin_role not in superadmin_user.roles:
+        superadmin_role = session.execute(select(Role).where(func.upper(Role.name) == "SUPERADMIN")).scalars().first()
+        if superadmin_role and superadmin_role not in superadmin_user.roles:
             superadmin_user.roles.append(superadmin_role)
 
         session.commit()
