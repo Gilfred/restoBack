@@ -41,3 +41,4 @@ class User(Base):
     sessions = relationship("Session", back_populates="user")
     accounts = relationship("Account", back_populates="user")
     commandes = relationship("Commande", back_populates="user")
+    restaurant_user = relationship("RestaurantUser", back_populates="user", uselist=False)

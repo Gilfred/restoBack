@@ -27,3 +27,8 @@ class ActivationStatus(str, Enum):
     PENDING = "PENDING"
     ACTIVATED = "ACTIVATED"
     REJECTED = "REJECTED"
+
+class UserRestaurantStatus(str, Enum):
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    REJECTED = "REJECTED"
