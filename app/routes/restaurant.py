@@ -6,7 +6,8 @@ from app.database import get_session
 from app.schemas.restaurant import RestaurantCreate, RestaurantResponse
 from app.schemas.auth import StaffResponse
 from app.schemas.restaurant_activation_history import RestaurantActivationHistoryResponse
-from app.services import restaurant_service, restaurant_user_service
+from app.schemas.associations import UserRolesUpdate
+from app.services import restaurant_service, restaurant_user_service, association_service
 from app.dependencies import get_current_user, require_superadmin
 
 router = APIRouter()
