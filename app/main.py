@@ -5,6 +5,7 @@ from app.seed import seed_data
 from app.routes.auth.google import router as google_auth_router
 from app.routes.auth.email import router as email_auth_router
 from app.routes.restaurant import router as restaurant_router
+from app.routes.restaurant_user import router as restaurant_user_router
 from app.routes.role import router as role_router
 from app.routes.permission import router as permission_router
 from app.routes.condiment import router as condiment_router
@@ -33,6 +34,7 @@ app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "your-s
 app.include_router(google_auth_router, prefix="/auth", tags=["google-authentication"])
 app.include_router(email_auth_router, prefix="/auth", tags=["email-authentication"])
 app.include_router(restaurant_router, prefix="/restaurants", tags=["restaurants"])
+app.include_router(restaurant_user_router, prefix="/restaurant-users", tags=["restaurant-users"])
 app.include_router(role_router, prefix="/roles", tags=["roles"])
 app.include_router(permission_router, prefix="/permissions", tags=["permissions"])
 app.include_router(condiment_router, prefix="/condiments", tags=["condiments"])

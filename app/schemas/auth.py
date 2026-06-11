@@ -3,6 +3,7 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 from app.schemas.role import RoleWithPermissionsResponse
+from app.enums import UserRestaurantStatus
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -19,10 +20,9 @@ class UserResponse(UserBase):
     createdAt: datetime
 
 class StaffResponse(UserResponse):
-    roles: List[RoleWithPermissionsResponse]
-
-class UserRolesUpdate(BaseModel):
-    roleIds: List[UUID]
+    model_config = ConfigDict(from_attributes=True)
+    role: Optional[RoleWithPermissionsResponse] = None
+    status: UserRestaurantStatus
 
 class LoginRequest(BaseModel):
     email: EmailStr

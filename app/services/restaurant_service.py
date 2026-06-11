@@ -2,9 +2,10 @@ from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 from app.models.restaurant import Restaurant
 from app.models.user import User
+from app.models.restaurant_user import RestaurantUser
 from app.models.restaurant_activation_history import RestaurantActivationHistory
 from app.schemas.restaurant import RestaurantCreate
-from app.enums import ActivationStatus
+from app.enums import ActivationStatus, UserRestaurantStatus
 from uuid import UUID
 
 def create_restaurant(db: Session, restaurant_data: RestaurantCreate, owner_id: UUID):
@@ -70,6 +71,19 @@ def get_activation_history(db: Session):
 
 def get_restaurant_staff(db: Session, restaurant_id: UUID):
     from app.models.role import Role
-    return db.query(User).options(
-        joinedload(User.roles).joinedload(Role.permissions)
-    ).filter(User.restaurantId == restaurant_id).all()
+    results = db.query(RestaurantUser).options(
+        joinedload(RestaurantUser.user),
+        joinedload(RestaurantUser.role).joinedload(Role.permissions)
+    ).filter(
+        RestaurantUser.restaurantId == restaurant_id,
+        RestaurantUser.status == UserRestaurantStatus.ACTIVE
+    ).all()
+
+    # Flatten the result to match StaffResponse
+    staff = []
+    for ru in results:
+        u = ru.user
+        u.role = ru.role
+        u.status = ru.status
+        staff.append(u)
+    return staff

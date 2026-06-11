@@ -4,9 +4,9 @@ from typing import List
 from uuid import UUID
 from app.database import get_session
 from app.schemas.restaurant import RestaurantCreate, RestaurantResponse
-from app.schemas.auth import StaffResponse, UserRolesUpdate
+from app.schemas.auth import StaffResponse
 from app.schemas.restaurant_activation_history import RestaurantActivationHistoryResponse
-from app.services import restaurant_service, association_service
+from app.services import restaurant_service, restaurant_user_service
 from app.dependencies import get_current_user, require_superadmin
 
 router = APIRouter()
@@ -57,18 +57,20 @@ def get_restaurant_staff(
     current_user = Depends(get_current_user)
 ):
     # Determine which restaurant's staff to show
-    # If it's a restaurant owner or an employee, they should see their own restaurant's staff
-    if not current_user.restaurantId:
-        # Check if they own any restaurants (the first one)
+    # First, check if the user is explicitly linked to a restaurant in RestaurantUser
+    ru = restaurant_user_service.get_my_restaurant(db, current_user.id)
+    if ru and ru.status == restaurant_user_service.UserRestaurantStatus.ACTIVE:
+        restaurant_id = ru.restaurantId
+    else:
+        # If not, check if they own any restaurants
         owned_restaurant = db.query(restaurant_service.Restaurant).filter(restaurant_service.Restaurant.ownerId == current_user.id).first()
         if owned_restaurant:
             restaurant_id = owned_restaurant.id
         else:
-             raise HTTPException(status_code=403, detail="L'utilisateur n'est associé à aucun restaurant")
-    else:
-        restaurant_id = current_user.restaurantId
+             raise HTTPException(status_code=403, detail="L'utilisateur n'est associé à aucun restaurant actif")
 
     return restaurant_service.get_restaurant_staff(db, restaurant_id)
+
 
 @router.put("/staff/{employee_id}/roles", response_model=StaffResponse)
 def update_employee_roles(

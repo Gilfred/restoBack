@@ -9,7 +9,12 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from fastapi import Response
 
 def get_user_by_id(db: Session, user_id: uuid.UUID):
-    return db.query(User).options(joinedload(User.roles)).filter(User.id == user_id).first()
+    from app.models.restaurant_user import RestaurantUser
+    from app.models.role import Role
+    return db.query(User).options(
+        joinedload(User.roles),
+        joinedload(User.restaurant_user).joinedload(RestaurantUser.role).joinedload(Role.permissions)
+    ).filter(User.id == user_id).first()
 
 def get_or_create_user_google(db: Session, email: str, name: str, picture: str, provider_account_id: str):
     user = db.query(User).filter(User.email == email).first()
@@ -56,7 +61,12 @@ def create_user(db: Session, user_data):
     return db_user
 
 def get_user_by_email(db: Session, email: str):
-    return db.query(User).options(joinedload(User.roles)).filter(User.email == email).first()
+    from app.models.restaurant_user import RestaurantUser
+    from app.models.role import Role
+    return db.query(User).options(
+        joinedload(User.roles),
+        joinedload(User.restaurant_user).joinedload(RestaurantUser.role).joinedload(Role.permissions)
+    ).filter(User.email == email).first()
 
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
