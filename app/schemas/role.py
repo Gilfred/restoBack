@@ -1,7 +1,8 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+from app.schemas.permission import PermissionResponse
 
 class RoleBase(BaseModel):
     name: str
@@ -12,3 +13,6 @@ class RoleResponse(RoleBase):
     id: UUID
     createdAt: datetime
     updatedAt: datetime
+
+class RoleWithPermissionsResponse(RoleResponse):
+    permissions: List[PermissionResponse]

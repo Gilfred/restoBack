@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
-import uuid
 from app.models.associations import UserRole, RolePermission
+from app.models.user import User
+from app.models.role import Role
+from typing import List
+from uuid import UUID
 
 def get_user_roles(db: Session):
     return db.query(UserRole).all()
@@ -8,38 +11,19 @@ def get_user_roles(db: Session):
 def get_role_permissions(db: Session):
     return db.query(RolePermission).all()
 
-def add_user_role(db: Session, user_id: uuid.UUID, role_id: uuid.UUID):
-    user_role = UserRole(userId=user_id, roleId=role_id)
-    db.add(user_role)
+def update_user_roles(db: Session, user_id: UUID, role_ids: List[UUID]):
+    from sqlalchemy.orm import joinedload
+    user = db.query(User).options(
+        joinedload(User.roles).joinedload(Role.permissions)
+    ).filter(User.id == user_id).first()
+    if not user:
+        return None
+    
+    # Get the roles from the database
+    roles = db.query(Role).filter(Role.id.in_(role_ids)).all()
+    
+    # Update the user's roles
+    user.roles = roles
     db.commit()
-    db.refresh(user_role)
-    return user_role
-
-def remove_user_role(db: Session, user_id: uuid.UUID, role_id: uuid.UUID):
-    user_role = db.query(UserRole).filter(
-        UserRole.userId == user_id,
-        UserRole.roleId == role_id
-    ).first()
-    if user_role:
-        db.delete(user_role)
-        db.commit()
-        return True
-    return False
-
-def add_role_permission(db: Session, role_id: uuid.UUID, permission_id: uuid.UUID):
-    role_perm = RolePermission(roleId=role_id, permissionId=permission_id)
-    db.add(role_perm)
-    db.commit()
-    db.refresh(role_perm)
-    return role_perm
-
-def remove_role_permission(db: Session, role_id: uuid.UUID, permission_id: uuid.UUID):
-    role_perm = db.query(RolePermission).filter(
-        RolePermission.roleId == role_id,
-        RolePermission.permissionId == permission_id
-    ).first()
-    if role_perm:
-        db.delete(role_perm)
-        db.commit()
-        return True
-    return False
+    db.refresh(user)
+    return user

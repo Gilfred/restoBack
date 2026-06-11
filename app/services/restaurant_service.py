@@ -1,6 +1,7 @@
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.restaurant import Restaurant
+from app.models.user import User
 from app.models.restaurant_activation_history import RestaurantActivationHistory
 from app.schemas.restaurant import RestaurantCreate
 from app.enums import ActivationStatus
@@ -66,3 +67,9 @@ def activate_restaurant(db: Session, restaurant_id: UUID):
 
 def get_activation_history(db: Session):
     return db.query(RestaurantActivationHistory).all()
+
+def get_restaurant_staff(db: Session, restaurant_id: UUID):
+    from app.models.role import Role
+    return db.query(User).options(
+        joinedload(User.roles).joinedload(Role.permissions)
+    ).filter(User.restaurantId == restaurant_id).all()
