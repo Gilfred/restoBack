@@ -1,7 +1,8 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
+from app.schemas.role import RoleWithPermissionsResponse
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -16,6 +17,12 @@ class UserResponse(UserBase):
     image: Optional[str] = None
     isActive: bool
     createdAt: datetime
+
+class StaffResponse(UserResponse):
+    roles: List[RoleWithPermissionsResponse]
+
+class UserRolesUpdate(BaseModel):
+    roleIds: List[UUID]
 
 class LoginRequest(BaseModel):
     email: EmailStr
