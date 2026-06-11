@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from datetime import datetime
+from typing import List
 
 class UserRoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -25,3 +26,6 @@ class UserRoleCreate(BaseModel):
 class RolePermissionCreate(BaseModel):
     roleId: UUID
     permissionId: UUID
+
+class UserRolesUpdate(BaseModel):
+    roleIds: List[UUID]
