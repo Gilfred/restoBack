@@ -4,11 +4,10 @@ from typing import List
 from uuid import UUID
 from app.database import get_session
 from app.schemas.restaurant import RestaurantCreate, RestaurantResponse
+from app.schemas.auth import StaffResponse, UserRolesUpdate
 from app.schemas.restaurant_activation_history import RestaurantActivationHistoryResponse
-from app.schemas.auth import UserResponse
-from app.services import restaurant_service
-from app.dependencies import get_current_user, require_superadmin, check_permissions
-from app.models.user import User
+from app.services import restaurant_service, association_service
+from app.dependencies import get_current_user, require_superadmin
 
 router = APIRouter()
 
@@ -52,15 +51,44 @@ def get_activation_history(
 ):
     return restaurant_service.get_activation_history(db)
 
-@router.get("/{restaurant_id}/staff", response_model=List[UserResponse])
+@router.get("/staff", response_model=List[StaffResponse])
 def get_restaurant_staff(
-    restaurant_id: UUID,
     db: Session = Depends(get_session),
-    current_user = Depends(check_permissions("manage_staff"))
+    current_user = Depends(get_current_user)
 ):
-    # If not SUPERADMIN, ensure ADMIN is only looking at their own restaurant
-    is_superadmin = any(role.name.upper() == "SUPERADMIN" for role in current_user.roles)
-    if not is_superadmin and current_user.restaurantId != restaurant_id:
-        raise HTTPException(status_code=403, detail="Vous ne pouvez consulter que le personnel de votre propre restaurant")
+    # Determine which restaurant's staff to show
+    # If it's a restaurant owner or an employee, they should see their own restaurant's staff
+    if not current_user.restaurantId:
+        # Check if they own any restaurants (the first one)
+        owned_restaurant = db.query(restaurant_service.Restaurant).filter(restaurant_service.Restaurant.ownerId == current_user.id).first()
+        if owned_restaurant:
+            restaurant_id = owned_restaurant.id
+        else:
+             raise HTTPException(status_code=403, detail="L'utilisateur n'est associé à aucun restaurant")
+    else:
+        restaurant_id = current_user.restaurantId
 
-    return db.query(User).filter(User.restaurantId == restaurant_id).all()
+    return restaurant_service.get_restaurant_staff(db, restaurant_id)
+
+@router.put("/staff/{employee_id}/roles", response_model=StaffResponse)
+def update_employee_roles(
+    employee_id: UUID,
+    role_data: UserRolesUpdate,
+    db: Session = Depends(get_session),
+    current_user = Depends(get_current_user)
+):
+    # This endpoint is restricted to the restaurant owner
+    employee = db.query(restaurant_service.User).filter(restaurant_service.User.id == employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employé non trouvé")
+    
+    if not employee.restaurantId:
+        raise HTTPException(status_code=400, detail="L'employé n'est associé à aucun restaurant")
+
+    # Check if current_user is the owner of the restaurant
+    restaurant = restaurant_service.get_restaurant(db, employee.restaurantId)
+    if not restaurant or restaurant.ownerId != current_user.id:
+        raise HTTPException(status_code=403, detail="Seul le propriétaire du restaurant peut modifier les rôles des employés")
+
+    updated_employee = association_service.update_user_roles(db, employee_id, role_data.roleIds)
+    return updated_employee
