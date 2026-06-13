@@ -24,20 +24,23 @@ def join_restaurant(
 ):
     return restaurant_user_service.join_restaurant(db, current_user.id, restaurantId)
 
-@router.get("/{restaurantId}/join-requests", response_model=List[RestaurantUserWithDetailsResponse])
+@router.get("/join-requests", response_model=List[RestaurantUserWithDetailsResponse])
 def get_join_requests(
-    restaurantId: UUID,
     db: Session = Depends(get_session),
     current_user = Depends(get_current_user)
 ):
-    # Check if current_user is the owner of the restaurant
-    restaurant = restaurant_service.get_restaurant(db, restaurantId)
-    if not restaurant or restaurant.ownerId != current_user.id:
+    # Get the restaurant owned by the current user
+    restaurant = db.query(restaurant_service.Restaurant).filter(
+        restaurant_service.Restaurant.ownerId == current_user.id
+    ).first()
+
+    if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Seul le propriétaire du restaurant peut voir les demandes"
+            detail="Seul le propriétaire d'un restaurant peut voir les demandes d'adhésion"
         )
-    return restaurant_user_service.get_join_requests(db, restaurantId)
+
+    return restaurant_user_service.get_join_requests(db, restaurant.id)
 
 @router.post("/{restaurantId}/join-requests/{userId}/approve", response_model=RestaurantUserResponse)
 def approve_request(
@@ -91,20 +94,34 @@ def leave_restaurant(
     restaurant_user_service.leave_restaurant(db, current_user.id)
     return {"message": "Vous avez quitté le restaurant"}
 
-@router.get("/{restaurantId}/employees", response_model=List[StaffResponse])
+@router.get("/employees", response_model=List[StaffResponse])
 def get_employees(
-    restaurantId: UUID,
     db: Session = Depends(get_session),
     current_user = Depends(get_current_user)
 ):
-    restaurant = restaurant_service.get_restaurant(db, restaurantId)
-    if not restaurant or restaurant.ownerId != current_user.id:
+    # Check if the user is an owner
+    restaurant = db.query(restaurant_service.Restaurant).filter(
+        restaurant_service.Restaurant.ownerId == current_user.id
+    ).first()
+
+    # If not an owner, check if they are an active staff member
+    if not restaurant:
+        res_user = db.query(restaurant_user_service.RestaurantUser).filter(
+            restaurant_user_service.RestaurantUser.userId == current_user.id,
+            restaurant_user_service.RestaurantUser.status == restaurant_user_service.UserRestaurantStatus.ACTIVE
+        ).first()
+
+        if res_user:
+            restaurant = restaurant_service.get_restaurant(db, res_user.restaurantId)
+
+    if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Seul le propriétaire du restaurant peut voir les employés"
+            detail="Accès refusé : vous devez appartenir à un restaurant pour voir les membres"
         )
+
     # Reusing restaurant_service.get_restaurant_staff which returns the flattened format
-    return restaurant_service.get_restaurant_staff(db, restaurantId)
+    return restaurant_service.get_restaurant_staff(db, restaurant.id)
 
 @router.patch("/{restaurantId}/employees/{userId}/role", response_model=RestaurantUserResponse)
 def update_employee_role(

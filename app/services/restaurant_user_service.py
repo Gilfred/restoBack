@@ -70,6 +70,12 @@ def approve_request(db: Session, restaurant_id: UUID, user_id: UUID, role_id: UU
 
     db_restaurant_user.status = UserRestaurantStatus.ACTIVE
     db_restaurant_user.roleId = role_id
+
+    # Also update the User.restaurantId for consistency
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.restaurantId = restaurant_id
+
     db.commit()
     db.refresh(db_restaurant_user)
     return db_restaurant_user
@@ -115,6 +121,11 @@ def leave_restaurant(db: Session, user_id: UUID):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="L'utilisateur n'est lié à aucun restaurant"
         )
+
+    # Also clear the User.restaurantId
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.restaurantId = None
 
     db.delete(db_restaurant_user)
     db.commit()
