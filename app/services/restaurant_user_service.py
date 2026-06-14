@@ -11,10 +11,15 @@ def join_restaurant(db: Session, user_id: UUID, restaurant_id: UUID):
     # Check if user already belongs to a restaurant
     existing = db.query(RestaurantUser).filter(RestaurantUser.userId == user_id).first()
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="L'utilisateur est déjà lié à un restaurant"
-        )
+        if existing.status == UserRestaurantStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="L'utilisateur est déjà lié à un restaurant"
+            )
+        else:
+            # If PENDING or REJECTED, delete the old record to allow a new application
+            db.delete(existing)
+            db.commit()
 
     # Check if restaurant exists
     restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
@@ -36,7 +41,8 @@ def join_restaurant(db: Session, user_id: UUID, restaurant_id: UUID):
 
 def get_join_requests(db: Session, restaurant_id: UUID):
     return db.query(RestaurantUser).options(
-        joinedload(RestaurantUser.user)
+        joinedload(RestaurantUser.user),
+        joinedload(RestaurantUser.role)
     ).filter(
         RestaurantUser.restaurantId == restaurant_id,
         RestaurantUser.status == UserRestaurantStatus.PENDING
@@ -70,6 +76,12 @@ def approve_request(db: Session, restaurant_id: UUID, user_id: UUID, role_id: UU
 
     db_restaurant_user.status = UserRestaurantStatus.ACTIVE
     db_restaurant_user.roleId = role_id
+
+    # Sync User.restaurantId
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.restaurantId = restaurant_id
+
     db.commit()
     db.refresh(db_restaurant_user)
     return db_restaurant_user
@@ -115,6 +127,11 @@ def leave_restaurant(db: Session, user_id: UUID):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="L'utilisateur n'est lié à aucun restaurant"
         )
+
+    # Sync User.restaurantId
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.restaurantId = None
 
     db.delete(db_restaurant_user)
     db.commit()
