@@ -171,6 +171,14 @@ def update_employee_role(db: Session, restaurant_id: UUID, user_id: UUID, role_i
         )
 
     db_restaurant_user.roleId = role_id
+
+    # Sync with UserRole table
+    from app.models.associations import UserRole
+    # Clear existing roles and set new one
+    db.query(UserRole).filter(UserRole.userId == user_id).delete()
+    new_user_role = UserRole(userId=user_id, roleId=role_id)
+    db.add(new_user_role)
+
     db.commit()
     db.refresh(db_restaurant_user)
     return db_restaurant_user

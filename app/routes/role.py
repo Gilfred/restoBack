@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_session
-from app.schemas.role import RoleResponse
+from app.schemas.role import RoleWithPermissionsResponse
 from app.services import role_service
 from app.dependencies import get_current_user, require_admin
 
 router = APIRouter()
 
-@router.get("/", response_model=List[RoleResponse])
+@router.get("/", response_model=List[RoleWithPermissionsResponse])
 def read_roles(
     db: Session = Depends(get_session),
     current_user = Depends(require_admin)

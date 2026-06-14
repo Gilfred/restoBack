@@ -133,8 +133,11 @@ def update_employee_role(
 ):
     restaurant = restaurant_service.get_restaurant(db, restaurantId)
     if not restaurant or restaurant.ownerId != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Seul le propriétaire du restaurant peut modifier les rôles"
-        )
+        # SUPERADMIN can also modify roles
+        is_superadmin = any(role.name.upper() == "SUPERADMIN" for role in current_user.roles if role.name)
+        if not is_superadmin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Seul le propriétaire du restaurant peut modifier les rôles"
+            )
     return restaurant_user_service.update_employee_role(db, restaurantId, userId, role_data.roleId)

@@ -13,6 +13,7 @@ def get_role_permissions(db: Session):
 
 def update_user_roles(db: Session, user_id: UUID, role_ids: List[UUID]):
     from sqlalchemy.orm import joinedload
+    from app.models.restaurant_user import RestaurantUser
     user = db.query(User).options(
         joinedload(User.roles).joinedload(Role.permissions)
     ).filter(User.id == user_id).first()
@@ -24,6 +25,15 @@ def update_user_roles(db: Session, user_id: UUID, role_ids: List[UUID]):
     
     # Update the user's roles
     user.roles = roles
+
+    # Sync with RestaurantUser table if it exists
+    # If the user has multiple roles, we take the first one or maintain the existing logic
+    # In this app, it seems RestaurantUser only has one roleId
+    if roles:
+        ru = db.query(RestaurantUser).filter(RestaurantUser.userId == user_id).first()
+        if ru:
+            ru.roleId = roles[0].id
+
     db.commit()
     db.refresh(user)
     return user

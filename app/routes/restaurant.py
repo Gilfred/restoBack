@@ -91,7 +91,28 @@ def update_employee_roles(
     # Check if current_user is the owner of the restaurant
     restaurant = restaurant_service.get_restaurant(db, employee.restaurantId)
     if not restaurant or restaurant.ownerId != current_user.id:
-        raise HTTPException(status_code=403, detail="Seul le propriétaire du restaurant peut modifier les rôles des employés")
+        # SUPERADMIN can also modify roles
+        is_superadmin = any(role.name.upper() == "SUPERADMIN" for role in current_user.roles if role.name)
+        if not is_superadmin:
+            raise HTTPException(status_code=403, detail="Seul le propriétaire du restaurant peut modifier les rôles des employés")
 
     updated_employee = association_service.update_user_roles(db, employee_id, role_data.roleIds)
+
+    # Flatten the result to match StaffResponse
+    from app.models.restaurant_user import RestaurantUser
+    from app.enums import UserRestaurantStatus
+    ru = db.query(RestaurantUser).filter(
+        RestaurantUser.userId == employee_id,
+        RestaurantUser.status == UserRestaurantStatus.ACTIVE
+    ).first()
+
+    # We already have updated_employee which is a User object with roles
+    # We just need to add the 'role' and 'status' attributes for StaffResponse
+    if updated_employee.roles:
+        updated_employee.role = updated_employee.roles[0]
+    else:
+        updated_employee.role = None
+
+    updated_employee.status = ru.status if ru else UserRestaurantStatus.ACTIVE
+
     return updated_employee
