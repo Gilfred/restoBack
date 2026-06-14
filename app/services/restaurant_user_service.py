@@ -16,8 +16,13 @@ def join_restaurant(db: Session, user_id: UUID, restaurant_id: UUID):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="L'utilisateur est déjà lié à un restaurant"
             )
+        elif existing.status == UserRestaurantStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Votre demande antérieure n'a pas encore été confirmée ou rejetée"
+            )
         else:
-            # If PENDING or REJECTED, delete the old record to allow a new application
+            # If REJECTED, delete the old record to allow a new application
             db.delete(existing)
             db.commit()
 
