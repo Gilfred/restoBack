@@ -107,7 +107,14 @@ def require_admin(
     is_admin = any(role.name.upper() in ["ADMIN", "SUPERADMIN"] for role in current_user.roles if role.name)
 
     if not is_admin:
-        # Fallback: check database directly
+        # Fallback: check if they are an owner of any restaurant
+        from app.models.restaurant import Restaurant
+        is_owner = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
+        if is_owner:
+            is_admin = True
+
+    if not is_admin:
+        # Fallback 2: check database directly for roles
         from app.models.associations import UserRole
         from app.models.role import Role
 
