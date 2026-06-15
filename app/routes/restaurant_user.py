@@ -82,7 +82,7 @@ def get_me_restaurant(
     if not res:
          raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Aucun restaurant associé"
+            detail="Vous n'êtes associé à aucun restaurant"
         )
     return res
 

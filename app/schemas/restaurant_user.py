@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, List
 from app.enums import UserRestaurantStatus
 from app.schemas.auth import UserResponse
-from app.schemas.role import RoleResponse
+from app.schemas.role import RoleResponse, RoleWithPermissionsResponse
 from app.schemas.restaurant import RestaurantResponse
 
 class RestaurantUserBase(BaseModel):
@@ -36,5 +36,5 @@ class RestaurantUserWithDetailsResponse(RestaurantUserResponse):
 class MeRestaurantResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     restaurant: RestaurantResponse
-    role: Optional[RoleResponse] = None
+    role: Optional[RoleWithPermissionsResponse] = None
     status: UserRestaurantStatus
