@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from app.models.restaurant_user import RestaurantUser
 from app.models.user import User
@@ -115,12 +116,32 @@ def reject_request(db: Session, restaurant_id: UUID, user_id: UUID):
     return db_restaurant_user
 
 def get_my_restaurant(db: Session, user_id: UUID):
-    return db.query(RestaurantUser).options(
+    # 1. Check if user is a staff member (in RestaurantUser table)
+    res_user = db.query(RestaurantUser).options(
         joinedload(RestaurantUser.restaurant),
-        joinedload(RestaurantUser.role)
+        joinedload(RestaurantUser.role).joinedload(Role.permissions)
     ).filter(
         RestaurantUser.userId == user_id
     ).first()
+
+    if res_user:
+        return res_user
+
+    # 2. If not staff, check if user is a restaurant owner
+    restaurant = db.query(Restaurant).filter(Restaurant.ownerId == user_id).first()
+    if restaurant:
+        # Get the ADMIN role with its permissions
+        admin_role = db.query(Role).options(joinedload(Role.permissions)).filter(
+            func.upper(Role.name) == "ADMIN"
+        ).first()
+
+        return {
+            "restaurant": restaurant,
+            "role": admin_role,
+            "status": UserRestaurantStatus.ACTIVE
+        }
+
+    return None
 
 def leave_restaurant(db: Session, user_id: UUID):
     db_restaurant_user = db.query(RestaurantUser).filter(
