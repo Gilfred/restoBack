@@ -6,6 +6,7 @@ from app.models.verification import Verification
 from datetime import datetime, timedelta, timezone
 import uuid
 from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.config import settings
 from fastapi import Response
 
 def get_user_by_id(db: Session, user_id: uuid.UUID):
@@ -80,7 +81,7 @@ def create_user_session(db: Session, user_id: uuid.UUID, expires_delta: timedelt
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(days=7)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
     token = str(uuid.uuid4())
     db_session = UserSession(
@@ -125,8 +126,8 @@ def login_user(db: Session, user, response: Response):
         key="session_token",
         value=access_token,
         httponly=True,
-        max_age=7 * 24 * 60 * 60,
-        expires=7 * 24 * 60 * 60,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="lax",
         secure=False,
     )
