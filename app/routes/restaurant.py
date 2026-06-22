@@ -58,12 +58,20 @@ def get_restaurant_staff(
     current_user = Depends(get_current_user)
 ):
     # Determine which restaurant's staff to show
-    # First, check if the user is explicitly linked to a restaurant in RestaurantUser
+    # First, check if the user is explicitly linked to a restaurant in RestaurantUser or owns one
     ru = restaurant_user_service.get_my_restaurant(db, current_user.id)
-    if ru and ru.status == restaurant_user_service.UserRestaurantStatus.ACTIVE:
-        restaurant_id = ru.restaurantId
-    else:
-        # If not, check if they own any restaurants
+
+    restaurant_id = None
+    if ru:
+        # ru can be a RestaurantUser object (for staff) or a dict (for owners)
+        if isinstance(ru, dict):
+            if ru.get("status") == restaurant_user_service.UserRestaurantStatus.ACTIVE:
+                restaurant_id = ru.get("restaurant").id if ru.get("restaurant") else None
+        elif ru.status == restaurant_user_service.UserRestaurantStatus.ACTIVE:
+            restaurant_id = ru.restaurantId
+
+    if not restaurant_id:
+        # If not, check if they own any restaurants as a fallback
         owned_restaurant = db.query(restaurant_service.Restaurant).filter(restaurant_service.Restaurant.ownerId == current_user.id).first()
         if owned_restaurant:
             restaurant_id = owned_restaurant.id
