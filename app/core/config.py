@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: Optional[str] = None
     
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 2  # 2 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10 # * 24 * 2   2 days
 
     # DB
     DB_USER: str
