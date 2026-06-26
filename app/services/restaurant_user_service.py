@@ -83,10 +83,17 @@ def approve_request(db: Session, restaurant_id: UUID, user_id: UUID, role_id: UU
     db_restaurant_user.status = UserRestaurantStatus.ACTIVE
     db_restaurant_user.roleId = role_id
 
-    # Sync User.restaurantId
+    # Sync User.restaurantId and UserRole table
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         user.restaurantId = restaurant_id
+        
+        # Sync with UserRole table
+        from app.models.associations import UserRole
+        # Clear existing roles and set new one
+        db.query(UserRole).filter(UserRole.userId == user_id).delete()
+        new_user_role = UserRole(userId=user_id, roleId=role_id)
+        db.add(new_user_role)
 
     db.commit()
     db.refresh(db_restaurant_user)
@@ -157,6 +164,9 @@ def leave_restaurant(db: Session, user_id: UUID):
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         user.restaurantId = None
+        # Remove roles associated with the user
+        from app.models.associations import UserRole
+        db.query(UserRole).filter(UserRole.userId == user_id).delete()
 
     db.delete(db_restaurant_user)
     db.commit()
@@ -194,11 +204,13 @@ def update_employee_role(db: Session, restaurant_id: UUID, user_id: UUID, role_i
     db_restaurant_user.roleId = role_id
 
     # Sync with UserRole table
-    from app.models.associations import UserRole
-    # Clear existing roles and set new one
-    db.query(UserRole).filter(UserRole.userId == user_id).delete()
-    new_user_role = UserRole(userId=user_id, roleId=role_id)
-    db.add(new_user_role)
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        from app.models.associations import UserRole
+        # Clear existing roles and set new one
+        db.query(UserRole).filter(UserRole.userId == user_id).delete()
+        new_user_role = UserRole(userId=user_id, roleId=role_id)
+        db.add(new_user_role)
 
     db.commit()
     db.refresh(db_restaurant_user)
