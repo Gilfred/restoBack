@@ -42,36 +42,42 @@ def get_join_requests(
 
     return restaurant_user_service.get_join_requests(db, restaurant.id)
 
-@router.post("/{restaurantId}/join-requests/{userId}/approve", response_model=RestaurantUserResponse)
+@router.post("/join-requests/{userId}/approve", response_model=RestaurantUserResponse)
 def approve_request(
-    restaurantId: UUID,
     userId: UUID,
     approve_data: RestaurantUserApprove,
     db: Session = Depends(get_session),
     current_user = Depends(get_current_user)
 ):
-    restaurant = restaurant_service.get_restaurant(db, restaurantId)
-    if not restaurant or restaurant.ownerId != current_user.id:
+    # Get the restaurant owned by the current user
+    restaurant = db.query(restaurant_service.Restaurant).filter(
+        restaurant_service.Restaurant.ownerId == current_user.id
+    ).first()
+
+    if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Seul le propriétaire du restaurant peut approuver les demandes"
         )
-    return restaurant_user_service.approve_request(db, restaurantId, userId, approve_data.roleId)
+    return restaurant_user_service.approve_request(db, restaurant.id, userId, approve_data.roleId)
 
-@router.post("/{restaurantId}/join-requests/{userId}/reject", response_model=RestaurantUserResponse)
+@router.post("/join-requests/{userId}/reject", response_model=RestaurantUserResponse)
 def reject_request(
-    restaurantId: UUID,
     userId: UUID,
     db: Session = Depends(get_session),
     current_user = Depends(get_current_user)
 ):
-    restaurant = restaurant_service.get_restaurant(db, restaurantId)
-    if not restaurant or restaurant.ownerId != current_user.id:
+    # Get the restaurant owned by the current user
+    restaurant = db.query(restaurant_service.Restaurant).filter(
+        restaurant_service.Restaurant.ownerId == current_user.id
+    ).first()
+
+    if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Seul le propriétaire du restaurant peut rejeter les demandes"
         )
-    return restaurant_user_service.reject_request(db, restaurantId, userId)
+    return restaurant_user_service.reject_request(db, restaurant.id, userId)
 
 @router.get("/me/restaurant", response_model=MeRestaurantResponse)
 def get_me_restaurant(
@@ -123,21 +129,21 @@ def get_employees(
     # Reusing restaurant_service.get_restaurant_staff which returns the flattened format
     return restaurant_service.get_restaurant_staff(db, restaurant.id)
 
-@router.patch("/{restaurantId}/employees/{userId}/role", response_model=RestaurantUserResponse)
+@router.patch("/employees/{userId}/role", response_model=RestaurantUserResponse)
 def update_employee_role(
-    restaurantId: UUID,
     userId: UUID,
     role_data: RestaurantUserRoleUpdate,
     db: Session = Depends(get_session),
     current_user = Depends(get_current_user)
 ):
-    restaurant = restaurant_service.get_restaurant(db, restaurantId)
-    if not restaurant or restaurant.ownerId != current_user.id:
-        # SUPERADMIN can also modify roles
-        is_superadmin = any(role.name.upper() == "SUPERADMIN" for role in current_user.roles if role.name)
-        if not is_superadmin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Seul le propriétaire du restaurant peut modifier les rôles"
-            )
-    return restaurant_user_service.update_employee_role(db, restaurantId, userId, role_data.roleId)
+    # Get the restaurant owned by the current user
+    restaurant = db.query(restaurant_service.Restaurant).filter(
+        restaurant_service.Restaurant.ownerId == current_user.id
+    ).first()
+
+    if not restaurant:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seul le propriétaire du restaurant peut modifier les rôles"
+        )
+    return restaurant_user_service.update_employee_role(db, restaurant.id, userId, role_data.roleId)
