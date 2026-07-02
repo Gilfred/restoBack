@@ -182,6 +182,12 @@ def check_permissions(*required_permissions: str):
         if any(role.name.upper() == "SUPERADMIN" for role in current_user.roles if role.name):
             return current_user
 
+        # OWNER fallback: Restaurant owners have all permissions for their restaurant
+        from app.models.restaurant import Restaurant
+        is_owner = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
+        if is_owner:
+            return current_user
+
         # Get all permissions for the user's roles
         user_permissions = set()
         for role in current_user.roles:
