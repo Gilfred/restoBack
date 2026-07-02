@@ -5,7 +5,6 @@ from typing import Optional
 
 class CondimentBase(BaseModel):
     nomcondiment: str
-    restaurantId: UUID
 
 class CondimentCreate(CondimentBase):
     pass
@@ -14,6 +13,7 @@ class CondimentUpdate(BaseModel):
     nomcondiment: Optional[str] = None
 
 class CondimentResponse(CondimentBase):
+    restaurantId: UUID
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     createdAt: datetime
