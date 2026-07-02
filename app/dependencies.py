@@ -206,3 +206,42 @@ def check_permissions(*required_permissions: str):
             )
         return current_user
     return permission_checker
+
+def get_user_restaurant_id(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+) -> uuid.UUID:
+    """Retrieve the restaurant ID associated with the current user (owner or active staff)."""
+    from app.services import restaurant_user_service
+    from app.enums import UserRestaurantStatus
+    from app.models.restaurant_user import RestaurantUser
+
+    ru = restaurant_user_service.get_my_restaurant(db, current_user.id)
+    if not ru:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="L'utilisateur n'est associé à aucun restaurant"
+        )
+
+    if isinstance(ru, dict):
+        # Case for owners (returned as dict by get_my_restaurant)
+        if ru.get("status") != UserRestaurantStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Le restaurant n'est pas actif"
+            )
+        restaurant = ru.get("restaurant")
+        if not restaurant:
+            raise HTTPException(status_code=500, detail="Données du restaurant manquantes")
+        return restaurant.id
+
+    if isinstance(ru, RestaurantUser):
+        # Case for staff (returned as RestaurantUser object)
+        if ru.status != UserRestaurantStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Votre accès au restaurant n'est pas encore actif ou a été révoqué"
+            )
+        return ru.restaurantId
+
+    raise HTTPException(status_code=500, detail="Type de données restaurant inattendu")
