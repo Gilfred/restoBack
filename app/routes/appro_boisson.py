@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.appro_boisson import ApproBoissonCreate, ApproBoissonUpdate, ApproBoissonResponse
 from app.services import appro_boisson_service
-from app.dependencies import require_admin, get_user_restaurant_id
+from app.dependencies import get_user_restaurant_id, check_permissions
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ def create_appro(
     appro_data: ApproBoissonCreate,
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
-    current_user = Depends(require_admin)
+    current_user = Depends(check_permissions("manage_staff"))
 ):
     return appro_boisson_service.create_appro_boisson(db, appro_data, restaurant_id)
 
@@ -22,7 +22,7 @@ def create_appro(
 def list_appros(
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
-    current_user = Depends(require_admin)
+    current_user = Depends(check_permissions("view_menu"))
 ):
     return appro_boisson_service.get_appro_boissons(db, restaurant_id)
 
@@ -31,7 +31,7 @@ def get_appro(
     appro_id: UUID,
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
-    current_user = Depends(require_admin)
+    current_user = Depends(check_permissions("view_menu"))
 ):
     db_appro = appro_boisson_service.get_appro_boisson(db, appro_id, restaurant_id)
     if not db_appro:
@@ -44,7 +44,7 @@ def update_appro(
     appro_data: ApproBoissonUpdate,
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
-    current_user = Depends(require_admin)
+    current_user = Depends(check_permissions("manage_staff"))
 ):
     db_appro = appro_boisson_service.update_appro_boisson(db, appro_id, appro_data, restaurant_id)
     if not db_appro:
@@ -56,7 +56,7 @@ def delete_appro(
     appro_id: UUID,
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
-    current_user = Depends(require_admin)
+    current_user = Depends(check_permissions("manage_staff"))
 ):
     if not appro_boisson_service.delete_appro_boisson(db, appro_id, restaurant_id):
         raise HTTPException(status_code=404, detail="ApproBoisson not found")
