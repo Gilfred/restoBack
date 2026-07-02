@@ -5,7 +5,6 @@ from app.enums import CasierType
 
 class CasierBase(BaseModel):
     typeCasier: CasierType
-    restaurantId: UUID
 
 class CasierCreate(CasierBase):
     pass
@@ -13,6 +12,7 @@ class CasierCreate(CasierBase):
 class CasierResponse(CasierBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+    restaurantId: UUID
     isActive: bool
     createdAt: datetime
     updatedAt: datetime
