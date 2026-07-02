@@ -6,8 +6,11 @@ from uuid import UUID
 def get_unites(db: Session, restaurant_id: UUID):
     return db.query(Unite).filter(Unite.restaurantId == restaurant_id, Unite.isActive == True).all()
 
-def create_unite(db: Session, unite_data: UniteCreate):
-    db_unite = Unite(**unite_data.model_dump())
+def create_unite(db: Session, unite_data: UniteCreate, restaurant_id: UUID):
+    db_unite = Unite(
+        **unite_data.model_dump(),
+        restaurantId=restaurant_id
+    )
     db.add(db_unite)
     db.commit()
     db.refresh(db_unite)
