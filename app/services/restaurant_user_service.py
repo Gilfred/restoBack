@@ -9,6 +9,23 @@ from uuid import UUID
 from fastapi import HTTPException, status
 
 def join_restaurant(db: Session, user_id: UUID, restaurant_id: UUID):
+    # Check if user is an owner of any restaurant
+    is_owner = db.query(Restaurant).filter(Restaurant.ownerId == user_id).first() is not None
+
+    # Check if user has ADMIN or SUPERADMIN role
+    from app.models.associations import UserRole
+    from app.models.role import Role
+    has_admin_role = db.query(Role).join(UserRole).filter(
+        UserRole.userId == user_id,
+        func.upper(Role.name).in_(["ADMIN", "SUPERADMIN"])
+    ).first() is not None
+
+    if is_owner or has_admin_role:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un administrateur ou propriétaire ne peut pas envoyer de demande d'adhésion"
+        )
+
     # Check if user already belongs to a restaurant
     existing = db.query(RestaurantUser).filter(RestaurantUser.userId == user_id).first()
     if existing:
