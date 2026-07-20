@@ -8,7 +8,7 @@ def get_unites(db: Session, restaurant_id: UUID):
 
 def create_unite(db: Session, unite_data: UniteCreate, restaurant_id: UUID):
     db_unite = Unite(
-        **unite_data.model_dump(),
+        **unite_data.model_dump(exclude={"restaurantId"}),
         restaurantId=restaurant_id
     )
     db.add(db_unite)
