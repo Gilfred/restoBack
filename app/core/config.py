@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     DB_PORT: int
     DB_NAME: str
     DATABASE_URL_POSTGRES: str
+    
+    SEED_SUPERADMIN_NAME: str
+    SEED_SUPERADMIN_EMAIL: str
+    SEED_SUPERADMIN_PASSWORD: str
 
 
 settings = Settings()

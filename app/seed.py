@@ -4,7 +4,7 @@ from app.database import engine, create_db_and_tables
 from app.models import Role, Permission, User, MethodePayment
 from app.enums import MethodePaiementEnum
 from app.core.security import get_password_hash
-import datetime
+from app.core.config import settings
 
 def seed_data():
     with Session(engine) as session:
@@ -68,12 +68,16 @@ def seed_data():
         session.commit()
 
         # 4. Create/Update Superadmin User
-        superadmin_user = session.execute(select(User).where(func.lower(User.email) == "fredo@gmail.com")).scalars().first()
+        superadmin_user = session.execute(
+                select(User).where(
+                    func.lower(User.email) == settings.SEED_SUPERADMIN_EMAIL.lower()
+                )
+            ).scalars().first()
         if not superadmin_user:
             superadmin_user = User(
-                name="Super Admin",
-                email="fredo@gmail.com",
-                password=get_password_hash("gilfredmawulomdgb@gilexis"),
+                name=settings.SEED_SUPERADMIN_NAME,
+                email=settings.SEED_SUPERADMIN_EMAIL,
+                password=get_password_hash(settings.SEED_SUPERADMIN_PASSWORD),
                 isActive=True
             )
             session.add(superadmin_user)
