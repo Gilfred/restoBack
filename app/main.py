@@ -30,7 +30,12 @@ app = FastAPI(
 )
 
 # Add SessionMiddleware for Authlib
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "your-secret-key"))
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", "your-secret-key"),
+    same_site="lax",    #PERMET au cookie d'être envoyé depuis la redirection de Google
+    secure=True,        # OBLIGATOIRE car Render utilise le HTTPS
+)
 
 # Add CORS Middleware
 app.add_middleware(

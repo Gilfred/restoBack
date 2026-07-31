@@ -31,7 +31,7 @@ async def google_callback(
 
     if not user_info:
         return RedirectResponse(
-            url="http://localhost:5173/login?error=google_auth_failed"
+            url="https://grandresto.gilexist.workers.dev/login?error=google_auth_failed"
         )
 
     # Création ou récupération de l'utilisateur
@@ -52,7 +52,7 @@ async def google_callback(
 
     # Redirection vers le frontend
     redirect_response = RedirectResponse(
-        url="http://localhost:5173/auth/callback",
+        url="https://grandresto.gilexist.workers.dev/auth/callback",
         status_code=302,
     )
 
@@ -61,7 +61,7 @@ async def google_callback(
         key="session_token",
         value=access_token,
         httponly=True,
-        secure=False,       # Mettre True en production (HTTPS)
+        secure=True,       #True en production (HTTPS)
         samesite="lax",
         max_age=7 * 24 * 60 * 60,
         expires=7 * 24 * 60 * 60,
