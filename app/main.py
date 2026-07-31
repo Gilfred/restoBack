@@ -33,8 +33,8 @@ app = FastAPI(
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY", "your-secret-key"),
-    same_site="lax",    #PERMET au cookie d'être envoyé depuis la redirection de Google
-    secure=True,        # OBLIGATOIRE car Render utilise le HTTPS
+    same_site="none",    #Permet le cookie entre domaines différents (frontend/backend séparés)
+    https_only=True,        # Remplace secure=True pour les anciennes versions de Starlette
 )
 
 # Add CORS Middleware
