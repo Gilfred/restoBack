@@ -126,10 +126,10 @@ def login_user(db: Session, user, response: Response):
         key="session_token",
         value=access_token,
         httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        secure=False,
+        secure=True,
+        samesite="none",
+        max_age=600,
+        path="/"
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
