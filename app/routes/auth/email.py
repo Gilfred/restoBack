@@ -8,6 +8,8 @@ from app.services import auth_service
 from app.core.security import create_access_token
 from app.dependencies import get_current_user
 from datetime import timedelta
+from app.services import auth_service, email_service
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -68,18 +70,36 @@ def get_me(current_user = Depends(get_current_user)):
     return current_user
 
 @router.post("/forgot-password")
-def forgot_password(
+async def forgot_password(
     data: ForgotPasswordRequest,
     db: Session = Depends(get_session)
 ):
     user = auth_service.get_user_by_email(db, data.email)
+
     if not user:
-        # We return 200 even if user doesn't exist for security reasons (prevent email enumeration)
-        return {"message": "If an account exists with this email, a reset link has been sent."}
-    
-    auth_service.create_password_reset_token(db, data.email)
-    
-    # Here you would typically send an email
+        return {
+            "message": "If an account exists with this email, a reset link has been sent."
+        }
+
+    token = auth_service.create_password_reset_token(
+        db,
+        data.email
+    )
+
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+
+    try:
+        await email_service.send_password_reset_email(
+            email=data.email,
+            reset_link=reset_link,
+        )
+    except Exception as e:
+        print(f"Erreur lors de l'envoi de l'email : {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to send password reset email"
+        )
+
     return {
         "message": "If an account exists with this email, a reset link has been sent."
     }
