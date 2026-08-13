@@ -24,8 +24,9 @@ class Settings(BaseSettings):
     # Email
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
-    MAIL_SERVER: str = "smtp.gmail.com"
-    MAIL_PORT: int = 587
+    MAIL_SERVER: str = "smtp-relay.brevo.com"
+    MAIL_PORT: int = 2525
+    MAIL_TLS: bool = True
     MAIL_FROM: str
     MAIL_FROM_NAME: str = "Gilexis"
     
