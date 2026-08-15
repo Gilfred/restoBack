@@ -37,10 +37,19 @@ def get_restaurant_waiters(db: Session, restaurant_id: UUID):
     waiters_map = {u.id: u for u in ru_waiters + ur_waiters}
     return list(waiters_map.values())
 
-def create_commande(db: Session, commande_data: CommandeCreate, restaurant_id: UUID):
+def create_commande(db: Session, commande_data: CommandeCreate, restaurant_id: UUID, current_user_id: UUID = None):
     """Create an order for a waiter within the manager's restaurant."""
+    data = commande_data.model_dump()
+    waiter_id = data.get("userId") or current_user_id
+
+    if not waiter_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Une serveuse doit être sélectionnée"
+        )
+
     # Verify selected waiter exists
-    waiter_user = db.query(User).filter(User.id == commande_data.userId).first()
+    waiter_user = db.query(User).filter(User.id == waiter_id).first()
     if not waiter_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -66,7 +75,7 @@ def create_commande(db: Session, commande_data: CommandeCreate, restaurant_id: U
             detail="La serveuse sélectionnée n'appartient pas à votre restaurant"
         )
 
-    data = commande_data.model_dump()
+    data["userId"] = waiter_id
     articles_data = data.pop("articles")
 
     data["restaurantId"] = restaurant_id
