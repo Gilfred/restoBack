@@ -25,11 +25,17 @@ class CommandeArticleUpdate(BaseModel):
     qte: Optional[int] = None
     prixUnitaire: Optional[float] = None
 
+class UserBasicInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    name: str
+    email: str
+
 class CommandeBase(BaseModel):
-    restaurantId: UUID
-    numeroCommande: str
+    restaurantId: Optional[UUID] = None
+    numeroCommande: Optional[str] = None
     userId: UUID
-    total: float
+    total: Optional[float] = None
     statut: CommandeStatut = CommandeStatut.PENDING
 
 class CommandeCreate(CommandeBase):
@@ -39,9 +45,15 @@ class CommandeUpdate(BaseModel):
     statut: Optional[CommandeStatut] = None
     total: Optional[float] = None
 
-class CommandeResponse(CommandeBase):
+class CommandeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+    restaurantId: UUID
+    numeroCommande: str
+    userId: UUID
+    total: float
+    statut: CommandeStatut
     createdAt: datetime
     updatedAt: datetime
+    user: Optional[UserBasicInfo] = None
     articles: List[CommandeArticleResponse]

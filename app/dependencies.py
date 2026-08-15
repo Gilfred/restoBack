@@ -130,6 +130,39 @@ def require_admin(
         )
     return current_user
 
+def require_manager_cashier(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+) -> User:
+    """Check if the user is a MANAGER_CASHIER, ADMIN, SUPERADMIN, or restaurant owner."""
+    allowed_roles = ["MANAGER_CASHIER", "ADMIN", "SUPERADMIN"]
+    is_manager = any(role.name.upper() in allowed_roles for role in current_user.roles if role.name)
+
+    if not is_manager:
+        # Fallback 1: check if they are an owner of any restaurant
+        from app.models.restaurant import Restaurant
+        is_owner = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
+        if is_owner:
+            is_manager = True
+
+    if not is_manager:
+        # Fallback 2: check database directly for roles
+        from app.models.associations import UserRole
+        from app.models.role import Role
+        from sqlalchemy import func
+
+        is_manager = db.query(Role).join(UserRole).filter(
+            UserRole.userId == current_user.id,
+            func.upper(Role.name).in_(allowed_roles)
+        ).first() is not None
+
+    if not is_manager:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé: seul un gérant ou administrateur peut accéder à cette fonction"
+        )
+    return current_user
+
 def restrict_staff_modification(
     target_user_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
