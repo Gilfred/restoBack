@@ -7,7 +7,7 @@ from app.services.commande_service import create_commande, get_restaurant_waiter
 from app.models.user import User
 
 def test_create_commande_schema_optional_fields():
-    # Verify CommandeCreate can be initialized without userId
+    # Verify CommandeCreate can be initialized without userId or statut
     data = {
         "articles": [
             {"boissonId": str(uuid4()), "qte": 2, "prixUnitaire": 1500.0}
@@ -16,6 +16,7 @@ def test_create_commande_schema_optional_fields():
     commande_in = CommandeCreate(**data)
     assert not hasattr(commande_in, "restaurantId")
     assert not hasattr(commande_in, "numeroCommande")
+    assert not hasattr(commande_in, "statut")
     assert commande_in.userId is None
 
 def test_create_commande_generates_uuid_numero_commande():
