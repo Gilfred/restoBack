@@ -34,7 +34,6 @@ class UserBasicInfo(BaseModel):
 class CommandeBase(BaseModel):
     userId: Optional[UUID] = None
     total: Optional[float] = None
-    statut: CommandeStatut = CommandeStatut.PENDING
 
 class CommandeCreate(CommandeBase):
     articles: List[CommandeArticleCreate]
