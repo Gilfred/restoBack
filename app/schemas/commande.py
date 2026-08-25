@@ -34,7 +34,7 @@ class UserBasicInfo(BaseModel):
 class CommandeBase(BaseModel):
     restaurantId: Optional[UUID] = None
     numeroCommande: Optional[str] = None
-    userId: UUID
+    userId: Optional[UUID] = None
     total: Optional[float] = None
     statut: CommandeStatut = CommandeStatut.PENDING
 
