@@ -70,9 +70,7 @@ def create_commande(db: Session, commande_data: CommandeCreate, restaurant_id: U
     articles_data = data.pop("articles")
 
     data["restaurantId"] = restaurant_id
-
-    if not data.get("numeroCommande"):
-        data["numeroCommande"] = f"CMD-{uuid_mod.uuid4().hex[:8].upper()}"
+    data["numeroCommande"] = str(uuid_mod.uuid4())
 
     calculated_total = sum(art["qte"] * art["prixUnitaire"] for art in articles_data)
     if not data.get("total") or data.get("total") == 0:
