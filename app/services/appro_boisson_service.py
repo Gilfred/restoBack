@@ -18,9 +18,12 @@ def get_casier_capacity(casier_type: CasierType) -> int:
         return CASIER_CAPACITY[casier_type]
     val = str(casier_type.value if hasattr(casier_type, 'value') else casier_type).upper().replace("T", "")
     try:
-        return int(val)
+        cap = int(val)
+        if cap > 0:
+            return cap
     except ValueError:
-        return 0
+        pass
+    raise ValueError(f"Capacité inconnue ou invalide pour le type de casier: {casier_type}")
 
 def create_appro_boisson(db: Session, appro_data: ApproBoissonCreate, restaurant_id: UUID):
     # Verify boisson belongs to restaurant

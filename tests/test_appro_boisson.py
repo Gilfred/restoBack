@@ -12,10 +12,60 @@ from app.services.appro_boisson_service import (
     get_casier_capacity
 )
 
+from pydantic import ValidationError
+
 def test_casier_capacity_mapping():
     assert get_casier_capacity(CasierType.T12) == 12
     assert get_casier_capacity(CasierType.T20) == 20
     assert get_casier_capacity(CasierType.T24) == 24
+    with pytest.raises(ValueError, match="Capacité inconnue ou invalide"):
+        get_casier_capacity("UNKNOWN_TYPE")
+
+def test_appro_boisson_schema_validations():
+    boisson_id = uuid4()
+    casier_id = uuid4()
+
+    # Valid schema creation
+    valid_create = ApproBoissonCreate(
+        boissonId=boisson_id,
+        casierId=casier_id,
+        prixAchat=4500.0,
+        nbreCasier=2
+    )
+    assert valid_create.nbreCasier == 2
+
+    # Invalid nbreCasier (0 or negative)
+    with pytest.raises(ValidationError):
+        ApproBoissonCreate(
+            boissonId=boisson_id,
+            casierId=casier_id,
+            prixAchat=4500.0,
+            nbreCasier=0
+        )
+
+    with pytest.raises(ValidationError):
+        ApproBoissonCreate(
+            boissonId=boisson_id,
+            casierId=casier_id,
+            prixAchat=4500.0,
+            nbreCasier=-1
+        )
+
+    # Invalid prixAchat (0 or negative)
+    with pytest.raises(ValidationError):
+        ApproBoissonCreate(
+            boissonId=boisson_id,
+            casierId=casier_id,
+            prixAchat=0.0,
+            nbreCasier=2
+        )
+
+    # Invalid ApproBoissonUpdate
+    with pytest.raises(ValidationError):
+        ApproBoissonUpdate(nbreCasier=0)
+
+    with pytest.raises(ValidationError):
+        ApproBoissonUpdate(prixAchat=-10.0)
 
 def test_create_appro_boisson_stock_increment():
     db_mock = MagicMock()
