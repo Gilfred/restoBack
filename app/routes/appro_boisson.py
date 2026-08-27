@@ -38,7 +38,7 @@ def get_appro(
         raise HTTPException(status_code=404, detail="ApproBoisson not found")
     return db_appro
 
-@router.put("/{appro_id}", response_model=ApproBoissonResponse)
+@router.patch("/{appro_id}", response_model=ApproBoissonResponse)
 def update_appro(
     appro_id: UUID,
     appro_data: ApproBoissonUpdate,
