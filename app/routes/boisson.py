@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.boisson import BoissonCreate, BoissonUpdate, BoissonResponse
 from app.services import boisson_service
-from app.dependencies import get_user_restaurant_id, require_admin
+from app.dependencies import get_user_restaurant_id, require_admin, require_manager_cashier
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ def create_boisson(
 def list_boissons(
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
+    current_user = Depends(require_manager_cashier)
 ):
     return boisson_service.get_boissons(db, restaurant_id)
 
@@ -38,7 +38,7 @@ def get_boisson(
         raise HTTPException(status_code=404, detail="Boisson non trouvée")
     return db_boisson
 
-@router.put("/{boisson_id}", response_model=BoissonResponse)
+@router.patch("/{boisson_id}", response_model=BoissonResponse)
 def update_boisson(
     boisson_id: UUID,
     boisson_data: BoissonUpdate,

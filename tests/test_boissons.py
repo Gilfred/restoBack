@@ -7,7 +7,8 @@ from app.main import app
 from app.database import get_session
 from app.dependencies import get_current_user, require_admin, require_manager_cashier, get_user_restaurant_id
 from app.models.user import User
-from app.models.repas import Repas
+from app.models.boisson import Boisson
+from app.enums import BoissonContenance
 
 @pytest.fixture
 def client():
@@ -34,7 +35,7 @@ class MockQuery:
     def all(self):
         return self.items
 
-def test_create_repas(client):
+def test_create_boisson(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
@@ -52,59 +53,64 @@ def test_create_repas(client):
     db_mock.add.side_effect = mock_add
 
     payload = {
-        "nomRepas": "Poulet Yassa",
-        "prix": 3500.0
+        "nomBoisson": "Coca Cola",
+        "prixVente": 500.0,
+        "contenance": "0,33cl"
     }
 
-    response = client.post("/repas/", json=payload)
+    response = client.post("/boissons/", json=payload)
     app.dependency_overrides.clear()
 
     assert response.status_code == 201, response.text
     data = response.json()
-    assert data["nomRepas"] == "Poulet Yassa"
-    assert data["prix"] == 3500.0
+    assert data["nomBoisson"] == "Coca Cola"
+    assert data["prixVente"] == 500.0
     assert data["restaurantId"] == str(restaurant_id)
 
-def test_list_repas(client):
+def test_list_boissons(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
+    gerant_user = User(id=uuid4(), name="Gérant", email="gerant@test.com")
 
-    repas_obj = Repas(
+    boisson_obj = Boisson(
         id=uuid4(),
-        nomRepas="Riz Gras",
-        prix=2000.0,
+        nomBoisson="Fanta",
+        prixVente=500.0,
+        contenance=BoissonContenance.CL33,
+        stock=20,
         restaurantId=restaurant_id,
         createdAt=datetime.now(),
         updatedAt=datetime.now()
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_current_user] = lambda: admin_user
-    app.dependency_overrides[require_manager_cashier] = lambda: admin_user
+    app.dependency_overrides[get_current_user] = lambda: gerant_user
+    app.dependency_overrides[require_manager_cashier] = lambda: gerant_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    db_mock.query.side_effect = lambda model: MockQuery(repas_obj)
+    db_mock.query.side_effect = lambda model: MockQuery(boisson_obj)
 
-    response = client.get("/repas/")
+    response = client.get("/boissons/")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert len(data) == 1
-    assert data[0]["nomRepas"] == "Riz Gras"
+    assert data[0]["nomBoisson"] == "Fanta"
     assert data[0]["restaurantId"] == str(restaurant_id)
 
-def test_get_repas(client):
+def test_get_boisson(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    repas_id = uuid4()
+    boisson_id = uuid4()
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
 
-    repas_obj = Repas(
-        id=repas_id,
-        nomRepas="Attiéké Poisson",
-        prix=2500.0,
+    boisson_obj = Boisson(
+        id=boisson_id,
+        nomBoisson="Sprite",
+        prixVente=500.0,
+        contenance=BoissonContenance.CL33,
+        stock=15,
         restaurantId=restaurant_id,
         createdAt=datetime.now(),
         updatedAt=datetime.now()
@@ -115,45 +121,28 @@ def test_get_repas(client):
     app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    db_mock.query.side_effect = lambda model: MockQuery(repas_obj)
+    db_mock.query.side_effect = lambda model: MockQuery(boisson_obj)
 
-    response = client.get(f"/repas/{repas_id}")
+    response = client.get(f"/boissons/{boisson_id}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data["id"] == str(repas_id)
-    assert data["nomRepas"] == "Attiéké Poisson"
+    assert data["id"] == str(boisson_id)
+    assert data["nomBoisson"] == "Sprite"
 
-def test_get_repas_not_found(client):
+def test_update_boisson(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    repas_id = uuid4()
+    boisson_id = uuid4()
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
 
-    app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_current_user] = lambda: admin_user
-    app.dependency_overrides[require_admin] = lambda: admin_user
-    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
-
-    db_mock.query.side_effect = lambda model: MockQuery([])
-
-    response = client.get(f"/repas/{repas_id}")
-    app.dependency_overrides.clear()
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Repas non trouvé"
-
-def test_update_repas(client):
-    db_mock = MagicMock()
-    restaurant_id = uuid4()
-    repas_id = uuid4()
-    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
-
-    repas_obj = Repas(
-        id=repas_id,
-        nomRepas="Foutou Banane",
-        prix=3000.0,
+    boisson_obj = Boisson(
+        id=boisson_id,
+        nomBoisson="Juver",
+        prixVente=1000.0,
+        contenance=BoissonContenance.CL55,
+        stock=10,
         restaurantId=restaurant_id,
         createdAt=datetime.now(),
         updatedAt=datetime.now()
@@ -164,26 +153,28 @@ def test_update_repas(client):
     app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    db_mock.query.side_effect = lambda model: MockQuery(repas_obj)
+    db_mock.query.side_effect = lambda model: MockQuery(boisson_obj)
 
-    payload = {"prix": 3500.0}
-    response = client.patch(f"/repas/{repas_id}", json=payload)
+    payload = {"prixVente": 1200.0}
+    response = client.patch(f"/boissons/{boisson_id}", json=payload)
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data["prix"] == 3500.0
+    assert data["prixVente"] == 1200.0
 
-def test_delete_repas(client):
+def test_delete_boisson(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    repas_id = uuid4()
+    boisson_id = uuid4()
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
 
-    repas_obj = Repas(
-        id=repas_id,
-        nomRepas="Placali",
-        prix=2000.0,
+    boisson_obj = Boisson(
+        id=boisson_id,
+        nomBoisson="Water",
+        prixVente=300.0,
+        contenance=BoissonContenance.CL55,
+        stock=100,
         restaurantId=restaurant_id,
         createdAt=datetime.now(),
         updatedAt=datetime.now()
@@ -194,9 +185,9 @@ def test_delete_repas(client):
     app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    db_mock.query.side_effect = lambda model: MockQuery(repas_obj)
+    db_mock.query.side_effect = lambda model: MockQuery(boisson_obj)
 
-    response = client.delete(f"/repas/{repas_id}")
+    response = client.delete(f"/boissons/{boisson_id}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 204
