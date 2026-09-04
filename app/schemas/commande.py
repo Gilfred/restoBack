@@ -1,46 +1,47 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 from datetime import datetime
 from typing import List, Optional
 from app.enums import CommandeStatut
 
-class CommandeArticleBase(BaseModel):
+class CommandeArticleCreate(BaseModel):
+    boissonId: Optional[UUID] = None
+    repasId: Optional[UUID] = None
+    qte: int = Field(..., gt=0)
+
+class CommandeArticleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
     boissonId: Optional[UUID] = None
     repasId: Optional[UUID] = None
     qte: int
     prixUnitaire: float
-
-class CommandeArticleCreate(CommandeArticleBase):
-    pass
-
-class CommandeArticleResponse(CommandeArticleBase):
-    model_config = ConfigDict(from_attributes=True)
-    id: UUID
     sousTotal: float
     isActive: bool
 
 class CommandeArticleUpdate(BaseModel):
     boissonId: Optional[UUID] = None
     repasId: Optional[UUID] = None
-    qte: Optional[int] = None
+    qte: Optional[int] = Field(None, gt=0)
     prixUnitaire: Optional[float] = None
 
+# UTILISATEUR
 class UserBasicInfo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     name: str
     email: str
 
-class CommandeBase(BaseModel):
-    userId: Optional[UUID] = None
-    total: Optional[float] = None
-
-class CommandeCreate(CommandeBase):
+# COMMANDE
+class CommandeCreate(BaseModel):
+    userId: UUID
     articles: List[CommandeArticleCreate]
+
 
 class CommandeUpdate(BaseModel):
     statut: Optional[CommandeStatut] = None
     total: Optional[float] = None
+
 
 class CommandeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

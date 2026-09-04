@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_session
 from app.schemas.repas import RepasCreate, RepasUpdate, RepasResponse
 from app.services import repas_service
-from app.dependencies import get_user_restaurant_id, require_admin
+from app.dependencies import get_user_restaurant_id, require_admin, require_manager_cashier
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ def create_repas(
 def list_repas(
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
+    current_user = Depends(require_manager_cashier)
 ):
     return repas_service.get_repas_list(db, restaurant_id)
 
@@ -38,7 +38,7 @@ def get_repas(
         raise HTTPException(status_code=404, detail="Repas non trouvé")
     return db_repas
 
-@router.put("/{repas_id}", response_model=RepasResponse)
+@router.patch("/{repas_id}", response_model=RepasResponse)
 def update_repas(
     repas_id: UUID,
     repas_data: RepasUpdate,

@@ -17,7 +17,8 @@ def create_commande(
     restaurant_id: UUID = Depends(get_user_restaurant_id)
 ):
     """Create an order for a waiter. Restricted to MANAGER_CASHIER, ADMIN, SUPERADMIN, or restaurant owner."""
-    return commande_service.create_commande(db, commande_data, restaurant_id, current_user.id)
+    return commande_service.create_commande(db, commande_data, restaurant_id)
+
 
 @router.get("/waiters", response_model=List[UserBasicInfo])
 @router.get("/serveuses", response_model=List[UserBasicInfo])
