@@ -67,7 +67,7 @@ def get_commande(
         raise HTTPException(status_code=404, detail="Commande non trouvée")
     return db_commande
 
-@router.put("/{commande_id}", response_model=CommandeResponse)
+@router.patch("/{commande_id}", response_model=CommandeResponse)
 def update_commande(
     commande_id: UUID,
     commande_data: CommandeUpdate,

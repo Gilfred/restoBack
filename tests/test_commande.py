@@ -342,6 +342,61 @@ def test_endpoint_get_commande_not_found(client):
         assert response.json()["detail"] == "Commande non trouvée"
 
 
+def test_endpoint_update_commande_patch(client):
+    db_mock = MagicMock()
+    current_user = User(id=uuid4(), name="User", email="user@test.com")
+    commande_id = uuid4()
+    restaurant_id = uuid4()
+
+    updated_commande = Commande(
+        id=commande_id,
+        restaurantId=restaurant_id,
+        numeroCommande="CMD-98765432",
+        userId=current_user.id,
+        total=2500.0,
+        statut=CommandeStatut.PAID,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now(),
+        user=current_user,
+        articles=[]
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: current_user
+
+    with patch("app.services.commande_service.update_commande") as mock_update_cmd:
+        mock_update_cmd.return_value = updated_commande
+
+        payload = {"statut": "paid", "total": 2500.0}
+        response = client.patch(f"/commandes/{commande_id}", json=payload)
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["id"] == str(commande_id)
+        assert data["statut"] == "paid"
+        assert data["total"] == 2500.0
+
+
+def test_endpoint_update_commande_not_found(client):
+    db_mock = MagicMock()
+    current_user = User(id=uuid4(), name="User", email="user@test.com")
+    commande_id = uuid4()
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: current_user
+
+    with patch("app.services.commande_service.update_commande") as mock_update_cmd:
+        mock_update_cmd.return_value = None
+
+        payload = {"statut": "paid"}
+        response = client.patch(f"/commandes/{commande_id}", json=payload)
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Commande non trouvée"
+
+
 def test_endpoint_delete_commande(client):
     db_mock = MagicMock()
     current_user = User(id=uuid4(), name="User", email="user@test.com")
