@@ -267,18 +267,62 @@ def test_endpoint_list_my_commandes(client):
     db_mock = MagicMock()
     waiter_user = User(id=uuid4(), name="Serveuse", email="waiter@test.com")
     restaurant_id = uuid4()
+    boisson_id = uuid4()
+    repas_id = uuid4()
+
+    mock_boisson = Boisson(
+        id=boisson_id,
+        restaurantId=restaurant_id,
+        nomBoisson="Coca Cola",
+        contenance="0,33cl",
+        prixVente=500.0,
+        stock=10,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now(),
+    )
+
+    mock_repas = Repas(
+        id=repas_id,
+        restaurantId=restaurant_id,
+        nomRepas="Pizza Royale",
+        prix=3000.0,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now(),
+    )
+
+    article1 = CommandeArticle(
+        id=uuid4(),
+        boissonId=boisson_id,
+        repasId=None,
+        qte=2,
+        prixUnitaire=500.0,
+        sousTotal=1000.0,
+        isActive=True,
+    )
+    article1.boisson = mock_boisson
+
+    article2 = CommandeArticle(
+        id=uuid4(),
+        boissonId=None,
+        repasId=repas_id,
+        qte=1,
+        prixUnitaire=3000.0,
+        sousTotal=3000.0,
+        isActive=True,
+    )
+    article2.repas = mock_repas
 
     commande = Commande(
         id=uuid4(),
         restaurantId=restaurant_id,
         numeroCommande="CMD-ABCDEF12",
         userId=waiter_user.id,
-        total=1500.0,
+        total=4000.0,
         statut=CommandeStatut.PENDING,
         createdAt=datetime.now(),
         updatedAt=datetime.now(),
         user=waiter_user,
-        articles=[]
+        articles=[article1, article2]
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
@@ -295,6 +339,9 @@ def test_endpoint_list_my_commandes(client):
         data = response.json()
         assert len(data) == 1
         assert data[0]["numeroCommande"] == "CMD-ABCDEF12"
+        assert len(data[0]["articles"]) == 2
+        assert data[0]["articles"][0]["boisson"]["nomBoisson"] == "Coca Cola"
+        assert data[0]["articles"][1]["repas"]["nomRepas"] == "Pizza Royale"
 
 
 def test_endpoint_list_current_restaurant_commandes(client):

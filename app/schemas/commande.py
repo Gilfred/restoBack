@@ -3,6 +3,8 @@ from uuid import UUID
 from datetime import datetime
 from typing import List, Optional
 from app.enums import CommandeStatut
+from app.schemas.boisson import BoissonResponse
+from app.schemas.repas import RepasResponse
 
 class CommandeArticleCreate(BaseModel):
     boissonId: Optional[UUID] = None
@@ -18,6 +20,8 @@ class CommandeArticleResponse(BaseModel):
     prixUnitaire: float
     sousTotal: float
     isActive: bool
+    boisson: Optional[BoissonResponse] = None
+    repas: Optional[RepasResponse] = None
 
 class CommandeArticleUpdate(BaseModel):
     boissonId: Optional[UUID] = None

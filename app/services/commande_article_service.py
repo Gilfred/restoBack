@@ -2,15 +2,22 @@ import uuid as uuid_mod
 from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, relationship
 from app.models.commande import Commande
 from app.models.commande_article import CommandeArticle
+from app.models.boisson import Boisson
+from app.models.repas import Repas
 from app.models.user import User
 from app.models.restaurant_user import RestaurantUser
 from app.models.role import Role
 from app.models.associations import UserRole
 from app.enums import UserRestaurantStatus
-from app.schemas.commande import CommandeCreate, CommandeUpdate
+from app.schemas.commande import CommandeCreate, CommandeUpdate, CommandeArticleCreate, CommandeArticleUpdate
+
+if not hasattr(CommandeArticle, "boisson"):
+    CommandeArticle.boisson = relationship("Boisson", foreign_keys=[CommandeArticle.boissonId])
+if not hasattr(CommandeArticle, "repas"):
+    CommandeArticle.repas = relationship("Repas", foreign_keys=[CommandeArticle.repasId])
 
 def get_restaurant_waiters(db: Session, restaurant_id: UUID):
     """Retrieve all active waiters (serveuses) belonging to a specific restaurant."""
@@ -106,8 +113,9 @@ def create_commande(db: Session, commande_data: CommandeCreate, restaurant_id: U
 def get_my_commandes(db: Session, user_id: UUID):
     """Retrieve orders made for/by the currently logged-in serveuse/user."""
     return db.query(Commande).options(
-        joinedload(Commande.articles),
-        joinedload(Commande.user)
+        joinedload(Commande.user),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas)
     ).filter(
         Commande.userId == user_id,
         Commande.isActive == True
@@ -115,8 +123,9 @@ def get_my_commandes(db: Session, user_id: UUID):
 
 def get_commandes(db: Session, restaurant_id: UUID):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
-        joinedload(Commande.user)
+        joinedload(Commande.user),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas)
     ).filter(
         Commande.restaurantId == restaurant_id,
         Commande.isActive == True
@@ -124,12 +133,82 @@ def get_commandes(db: Session, restaurant_id: UUID):
 
 def get_commande(db: Session, commande_id: UUID):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
-        joinedload(Commande.user)
+        joinedload(Commande.user),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas)
     ).filter(
         Commande.id == commande_id,
         Commande.isActive == True
     ).first()
+
+def get_commande_articles(db: Session, commande_id: UUID):
+    return db.query(CommandeArticle).options(
+        joinedload(CommandeArticle.boisson),
+        joinedload(CommandeArticle.repas)
+    ).filter(
+        CommandeArticle.commandeId == commande_id,
+        CommandeArticle.isActive == True
+    ).all()
+
+def get_commande_article(db: Session, article_id: UUID):
+    return db.query(CommandeArticle).options(
+        joinedload(CommandeArticle.boisson),
+        joinedload(CommandeArticle.repas)
+    ).filter(
+        CommandeArticle.id == article_id,
+        CommandeArticle.isActive == True
+    ).first()
+
+def create_commande_article(db: Session, article_data: CommandeArticleCreate, commande_id: UUID):
+    data = article_data.model_dump()
+    boisson_id = data.get("boissonId")
+    repas_id = data.get("repasId")
+    qte = data.get("qte")
+
+    if boisson_id:
+        boisson = db.query(Boisson).filter(Boisson.id == boisson_id).first()
+        if not boisson:
+            raise HTTPException(status_code=404, detail="Boisson non trouvée")
+        prix_unitaire = boisson.prixVente
+    elif repas_id:
+        repas = db.query(Repas).filter(Repas.id == repas_id).first()
+        if not repas:
+            raise HTTPException(status_code=404, detail="Repas non trouvé")
+        prix_unitaire = repas.prix
+    else:
+        raise HTTPException(status_code=400, detail="L'article doit être soit une boisson soit un repas")
+
+    sous_total = qte * prix_unitaire
+    db_article = CommandeArticle(
+        commandeId=commande_id,
+        boissonId=boisson_id,
+        repasId=repas_id,
+        qte=qte,
+        prixUnitaire=prix_unitaire,
+        sousTotal=sous_total
+    )
+    db.add(db_article)
+    db.commit()
+    db.refresh(db_article)
+    return get_commande_article(db, db_article.id)
+
+def update_commande_article(db: Session, article_id: UUID, article_data: CommandeArticleUpdate):
+    db_article = get_commande_article(db, article_id)
+    if not db_article:
+        return None
+    for key, value in article_data.model_dump(exclude_unset=True).items():
+        setattr(db_article, key, value)
+    if article_data.qte or article_data.prixUnitaire:
+        db_article.sousTotal = db_article.qte * db_article.prixUnitaire
+    db.commit()
+    return get_commande_article(db, article_id)
+
+def delete_commande_article(db: Session, article_id: UUID):
+    db_article = get_commande_article(db, article_id)
+    if db_article:
+        db_article.isActive = False
+        db.commit()
+    return db_article
 
 def update_commande(db: Session, commande_id: UUID, commande_data: CommandeUpdate):
     db_commande = get_commande(db, commande_id)
