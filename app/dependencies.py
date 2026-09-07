@@ -284,3 +284,44 @@ def get_user_restaurant_id(
         return ru.restaurantId
 
     raise HTTPException(status_code=500, detail="Type de données restaurant inattendu")
+
+
+#Autorise uniquement les utilisateurs ayant le rôle MANAGER_CASHIER ou ADMIN dans leur restaurant 
+def require_manager_or_admin(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session)
+) -> User:
+    """
+    Autorise uniquement les utilisateurs ayant le rôle
+    MANAGER_CASHIER ou ADMIN dans leur restaurant.
+    """
+
+    allowed_roles = ["MANAGER_CASHIER", "ADMIN"]
+
+    # Vérification via les rôles chargés
+    has_allowed_role = any(
+        role.name and role.name.upper() in allowed_roles
+        for role in current_user.roles
+    )
+
+    if has_allowed_role:
+        return current_user
+
+    # Vérification directe en base au cas où les rôles
+    # ne seraient pas correctement chargés
+    from app.models.associations import UserRole
+    from app.models.role import Role
+    from sqlalchemy import func
+
+    has_allowed_role = db.query(Role).join(UserRole).filter(
+        UserRole.userId == current_user.id,
+        func.upper(Role.name).in_(allowed_roles)
+    ).first() is not None
+
+    if not has_allowed_role:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : rôle MANAGER_CASHIER ou ADMIN requis"
+        )
+
+    return current_user

@@ -1,12 +1,8 @@
 import uuid as uuid_mod
-
 from uuid import UUID
-
 from fastapi import HTTPException, status
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
-
 from app.models.commande import Commande
 from app.models.commande_article import CommandeArticle
 from app.models.user import User
@@ -15,15 +11,42 @@ from app.models.role import Role
 from app.models.associations import UserRole
 from app.models.boisson import Boisson
 from app.models.repas import Repas
-
 from app.enums import UserRestaurantStatus
-
 from app.schemas.commande import CommandeCreate, CommandeUpdate
+
+# UTILITAIRE : vérifier l'accès de l'utilisateur au restaurant
+
+def user_belongs_to_restaurant(
+    db: Session,
+    user_id: UUID,
+    restaurant_id: UUID
+) -> bool:
+
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.isActive == True
+    ).first()
+
+    if not user:
+        return False
+
+    # Cas où le restaurant est directement lié à User
+    if user.restaurantId == restaurant_id:
+        return True
+
+    # Cas où le lien passe par RestaurantUser
+    ru = db.query(RestaurantUser).filter(
+        RestaurantUser.userId == user_id,
+        RestaurantUser.restaurantId == restaurant_id,
+        RestaurantUser.status == UserRestaurantStatus.ACTIVE
+    ).first()
+
+    return ru is not None
 
 
 # SERVEUSES
+
 def get_restaurant_waiters(db: Session, restaurant_id: UUID):
-    """Retrieve all active waiters belonging to a restaurant."""
 
     ru_waiters = db.query(User).join(
         RestaurantUser,
@@ -49,12 +72,16 @@ def get_restaurant_waiters(db: Session, restaurant_id: UUID):
         func.upper(Role.name) == "WAITER"
     ).all()
 
-    waiters_map = {u.id: u for u in ru_waiters + ur_waiters}
+    waiters_map = {
+        u.id: u
+        for u in ru_waiters + ur_waiters
+    }
 
     return list(waiters_map.values())
 
 
-# CREATION COMMANDE
+# POST COMMANDE
+
 def create_commande(
     db: Session,
     commande_data: CommandeCreate,
@@ -121,8 +148,6 @@ def create_commande(
             repas_id = article.repasId
             qte = article.qte
 
-            # Un article doit être soit une boisson soit un repas
-
             if boisson_id and repas_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -134,8 +159,6 @@ def create_commande(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Chaque article doit avoir un boissonId ou un repasId"
                 )
-
-            # BOISSON
 
             if boisson_id:
 
@@ -152,8 +175,6 @@ def create_commande(
 
                 prix_unitaire = boisson.prixVente
 
-            # REPAS
-
             else:
 
                 repas = db.query(Repas).filter(
@@ -169,13 +190,9 @@ def create_commande(
 
                 prix_unitaire = repas.prix
 
-            # Calcul du sous-total
-
             sous_total = qte * prix_unitaire
 
             calculated_total += sous_total
-
-            # Création de l'article
 
             db_article = CommandeArticle(
                 commandeId=db_commande.id,
@@ -188,15 +205,14 @@ def create_commande(
 
             db.add(db_article)
 
-        # 6. Enregistrer le total calculé
-
         db_commande.total = calculated_total
-
-        # 7. Valider la transaction
 
         db.commit()
 
-        return get_commande(db, db_commande.id)
+        return get_commande(
+            db,
+            db_commande.id
+        )
 
     except HTTPException:
         db.rollback()
@@ -210,22 +226,50 @@ def create_commande(
         )
 
 
-# LISTE DES COMMANDES D'UNE SERVEUSE
-def get_my_commandes(db: Session, user_id: UUID):
+# MES COMMANDES
 
+def get_my_commandes(
+    db: Session,
+    user_id: UUID,
+    restaurant_id: UUID,
+):
     return db.query(Commande).options(
         joinedload(Commande.articles),
         joinedload(Commande.user)
     ).filter(
         Commande.userId == user_id,
+        Commande.restaurantId == restaurant_id,
         Commande.isActive == True
     ).order_by(
         Commande.createdAt.desc()
     ).all()
 
 
-# LISTE DES COMMANDES DU RESTAURANT
-def get_commandes(db: Session, restaurant_id: UUID):
+#récupération d'une seule commande appartenant à l'utilisateur connecté
+
+def get_my_commande(
+    db: Session,
+    commande_id: UUID,
+    user_id: UUID,
+    restaurant_id: UUID,
+):
+    return db.query(Commande).options(
+        joinedload(Commande.articles),
+        joinedload(Commande.user)
+    ).filter(
+        Commande.id == commande_id,
+        Commande.userId == user_id,
+        Commande.restaurantId == restaurant_id,
+        Commande.isActive == True
+    ).first()
+
+
+# TOUTES LES COMMANDES DU RESTAURANT
+
+def get_commandes(
+    db: Session,
+    restaurant_id: UUID
+):
 
     return db.query(Commande).options(
         joinedload(Commande.articles),
@@ -239,53 +283,81 @@ def get_commandes(db: Session, restaurant_id: UUID):
 
 
 # UNE COMMANDE
-def get_commande(db: Session, commande_id: UUID):
 
-    return db.query(Commande).options(
+def get_commande(
+    db: Session,
+    commande_id: UUID,
+    restaurant_id: UUID | None = None
+):
+
+    query = db.query(Commande).options(
         joinedload(Commande.articles),
         joinedload(Commande.user)
     ).filter(
         Commande.id == commande_id,
         Commande.isActive == True
-    ).first()
+    )
+
+    # Si restaurant_id est fourni,
+    # on interdit l'accès aux commandes d'un autre restaurant.
+    if restaurant_id is not None:
+        query = query.filter(
+            Commande.restaurantId == restaurant_id
+        )
+
+    return query.first()
 
 
-# MODIFICATION COMMANDE
+# MODIFICATION
+
 def update_commande(
     db: Session,
     commande_id: UUID,
-    commande_data: CommandeUpdate
+    commande_data: CommandeUpdate,
+    restaurant_id: UUID
 ):
 
-    db_commande = get_commande(db, commande_id)
+    db_commande = get_commande(
+        db,
+        commande_id,
+        restaurant_id
+    )
 
-    if db_commande:
+    if not db_commande:
+        return None
 
-        update_data = commande_data.model_dump(
-            exclude_unset=True
-        )
+    update_data = commande_data.model_dump(
+        exclude_unset=True
+    )
 
-        for key, value in update_data.items():
-            setattr(db_commande, key, value)
+    for key, value in update_data.items():
+        setattr(db_commande, key, value)
 
-        db.commit()
-        db.refresh(db_commande)
+    db.commit()
+    db.refresh(db_commande)
 
     return db_commande
 
 
 # SUPPRESSION LOGIQUE
+
 def delete_commande(
     db: Session,
-    commande_id: UUID
+    commande_id: UUID,
+    restaurant_id: UUID
 ):
 
-    db_commande = get_commande(db, commande_id)
+    db_commande = get_commande(
+        db,
+        commande_id,
+        restaurant_id
+    )
 
-    if db_commande:
+    if not db_commande:
+        return None
 
-        db_commande.isActive = False
+    db_commande.isActive = False
 
-        db.commit()
+    db.commit()
 
     return db_commande
