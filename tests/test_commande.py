@@ -8,8 +8,14 @@ from pydantic import ValidationError
 
 from app.main import app
 from app.database import get_session
-from app.dependencies import get_current_user, require_manager_cashier, get_user_restaurant_id
+from app.dependencies import (
+    get_current_user,
+    require_manager_cashier,
+    require_manager_or_admin,
+    get_user_restaurant_id,
+)
 from app.models.user import User
+from app.models.role import Role
 from app.models.boisson import Boisson
 from app.models.repas import Repas
 from app.models.commande import Commande
@@ -20,6 +26,7 @@ from app.services.commande_service import (
     create_commande,
     get_restaurant_waiters,
     get_my_commandes,
+    get_my_commande,
     get_commandes,
     get_commande,
     update_commande,
@@ -184,7 +191,6 @@ def test_endpoint_create_commande(client):
     manager_user = User(id=uuid4(), name="Manager", email="manager@test.com")
 
     waiter_user = User(id=waiter_id, name="Serveuse 1", email="waiter@test.com", restaurantId=restaurant_id)
-    boisson = Boisson(id=boisson_id, nomBoisson="Coca", prixVente=500.0, restaurantId=restaurant_id)
 
     commande_id = uuid4()
     created_commande = Commande(
@@ -241,13 +247,13 @@ def test_endpoint_list_waiters(client):
     waiter = User(id=uuid4(), name="Serveuse 1", email="waiter1@test.com", restaurantId=restaurant_id)
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[require_manager_cashier] = lambda: manager_user
+    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     with patch("app.services.commande_service.get_restaurant_waiters") as mock_get_waiters:
         mock_get_waiters.return_value = [waiter]
 
-        response = client.get("/commandes/waiters")
+        response = client.get("/commandes/serveuses")
         app.dependency_overrides.clear()
 
         assert response.status_code == 200, response.text
@@ -277,11 +283,12 @@ def test_endpoint_list_my_commandes(client):
 
     app.dependency_overrides[get_session] = lambda: db_mock
     app.dependency_overrides[get_current_user] = lambda: waiter_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     with patch("app.services.commande_service.get_my_commandes") as mock_my_cmd:
         mock_my_cmd.return_value = [commande]
 
-        response = client.get("/commandes/my-commandes")
+        response = client.get("/commandes/me")
         app.dependency_overrides.clear()
 
         assert response.status_code == 200, response.text
@@ -290,9 +297,44 @@ def test_endpoint_list_my_commandes(client):
         assert data[0]["numeroCommande"] == "CMD-ABCDEF12"
 
 
-def test_endpoint_get_commande_by_id(client):
+def test_endpoint_list_current_restaurant_commandes(client):
     db_mock = MagicMock()
-    current_user = User(id=uuid4(), name="User", email="user@test.com")
+    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com")
+    restaurant_id = uuid4()
+
+    commande = Commande(
+        id=uuid4(),
+        restaurantId=restaurant_id,
+        numeroCommande="CMD-ALL12345",
+        userId=manager_user.id,
+        total=3000.0,
+        statut=CommandeStatut.PENDING,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now(),
+        user=manager_user,
+        articles=[]
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    with patch("app.services.commande_service.get_commandes") as mock_get_cmds:
+        mock_get_cmds.return_value = [commande]
+
+        response = client.get("/commandes/")
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["numeroCommande"] == "CMD-ALL12345"
+
+
+def test_endpoint_get_commande_by_id_as_manager(client):
+    db_mock = MagicMock()
+    manager_role = Role(name="MANAGER_CASHIER")
+    current_user = User(id=uuid4(), name="Manager", email="manager@test.com", roles=[manager_role])
     commande_id = uuid4()
     restaurant_id = uuid4()
 
@@ -311,6 +353,7 @@ def test_endpoint_get_commande_by_id(client):
 
     app.dependency_overrides[get_session] = lambda: db_mock
     app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     with patch("app.services.commande_service.get_commande") as mock_get_cmd:
         mock_get_cmd.return_value = commande
@@ -324,15 +367,53 @@ def test_endpoint_get_commande_by_id(client):
         assert data["numeroCommande"] == "CMD-98765432"
 
 
-def test_endpoint_get_commande_not_found(client):
+def test_endpoint_get_commande_by_id_as_waiter(client):
     db_mock = MagicMock()
-    current_user = User(id=uuid4(), name="User", email="user@test.com")
+    waiter_role = Role(name="WAITER")
+    current_user = User(id=uuid4(), name="Waiter", email="waiter@test.com", roles=[waiter_role])
     commande_id = uuid4()
+    restaurant_id = uuid4()
+
+    commande = Commande(
+        id=commande_id,
+        restaurantId=restaurant_id,
+        numeroCommande="CMD-WAITER01",
+        userId=current_user.id,
+        total=1200.0,
+        statut=CommandeStatut.PENDING,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now(),
+        user=current_user,
+        articles=[]
+    )
 
     app.dependency_overrides[get_session] = lambda: db_mock
     app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    with patch("app.services.commande_service.get_commande") as mock_get_cmd:
+    with patch("app.services.commande_service.get_my_commande") as mock_get_my_cmd:
+        mock_get_my_cmd.return_value = commande
+
+        response = client.get(f"/commandes/{commande_id}")
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["id"] == str(commande_id)
+        assert data["numeroCommande"] == "CMD-WAITER01"
+
+
+def test_endpoint_get_commande_not_found(client):
+    db_mock = MagicMock()
+    current_user = User(id=uuid4(), name="User", email="user@test.com", roles=[])
+    commande_id = uuid4()
+    restaurant_id = uuid4()
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    with patch("app.services.commande_service.get_my_commande") as mock_get_cmd:
         mock_get_cmd.return_value = None
 
         response = client.get(f"/commandes/{commande_id}")
@@ -344,7 +425,7 @@ def test_endpoint_get_commande_not_found(client):
 
 def test_endpoint_update_commande_patch(client):
     db_mock = MagicMock()
-    current_user = User(id=uuid4(), name="User", email="user@test.com")
+    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com")
     commande_id = uuid4()
     restaurant_id = uuid4()
 
@@ -352,17 +433,18 @@ def test_endpoint_update_commande_patch(client):
         id=commande_id,
         restaurantId=restaurant_id,
         numeroCommande="CMD-98765432",
-        userId=current_user.id,
+        userId=manager_user.id,
         total=2500.0,
         statut=CommandeStatut.PAID,
         createdAt=datetime.now(),
         updatedAt=datetime.now(),
-        user=current_user,
+        user=manager_user,
         articles=[]
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     with patch("app.services.commande_service.update_commande") as mock_update_cmd:
         mock_update_cmd.return_value = updated_commande
@@ -380,11 +462,13 @@ def test_endpoint_update_commande_patch(client):
 
 def test_endpoint_update_commande_not_found(client):
     db_mock = MagicMock()
-    current_user = User(id=uuid4(), name="User", email="user@test.com")
+    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com")
     commande_id = uuid4()
+    restaurant_id = uuid4()
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     with patch("app.services.commande_service.update_commande") as mock_update_cmd:
         mock_update_cmd.return_value = None
@@ -399,11 +483,13 @@ def test_endpoint_update_commande_not_found(client):
 
 def test_endpoint_delete_commande(client):
     db_mock = MagicMock()
-    current_user = User(id=uuid4(), name="User", email="user@test.com")
+    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com")
     commande_id = uuid4()
+    restaurant_id = uuid4()
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     with patch("app.services.commande_service.delete_commande") as mock_del_cmd:
         mock_del_cmd.return_value = True
