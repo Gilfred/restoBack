@@ -2,7 +2,7 @@ import uuid as uuid_mod
 from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, relationship
 from app.models.commande import Commande
 from app.models.commande_article import CommandeArticle
 from app.models.user import User
@@ -13,6 +13,11 @@ from app.models.boisson import Boisson
 from app.models.repas import Repas
 from app.enums import UserRestaurantStatus
 from app.schemas.commande import CommandeCreate, CommandeUpdate
+
+if not hasattr(CommandeArticle, "boisson"):
+    CommandeArticle.boisson = relationship("Boisson", foreign_keys=[CommandeArticle.boissonId])
+if not hasattr(CommandeArticle, "repas"):
+    CommandeArticle.repas = relationship("Repas", foreign_keys=[CommandeArticle.repasId])
 
 # UTILITAIRE : vérifier l'accès de l'utilisateur au restaurant
 
@@ -234,8 +239,9 @@ def get_my_commandes(
     restaurant_id: UUID,
 ):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
-        joinedload(Commande.user)
+        joinedload(Commande.user),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas)
     ).filter(
         Commande.userId == user_id,
         Commande.restaurantId == restaurant_id,
@@ -254,8 +260,9 @@ def get_my_commande(
     restaurant_id: UUID,
 ):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
-        joinedload(Commande.user)
+        joinedload(Commande.user),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas)
     ).filter(
         Commande.id == commande_id,
         Commande.userId == user_id,
@@ -272,8 +279,9 @@ def get_commandes(
 ):
 
     return db.query(Commande).options(
-        joinedload(Commande.articles),
-        joinedload(Commande.user)
+        joinedload(Commande.user),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas)
     ).filter(
         Commande.restaurantId == restaurant_id,
         Commande.isActive == True
@@ -291,8 +299,9 @@ def get_commande(
 ):
 
     query = db.query(Commande).options(
-        joinedload(Commande.articles),
-        joinedload(Commande.user)
+        joinedload(Commande.user),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas)
     ).filter(
         Commande.id == commande_id,
         Commande.isActive == True
