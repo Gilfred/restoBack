@@ -234,7 +234,8 @@ def get_my_commandes(
     restaurant_id: UUID,
 ):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas),
         joinedload(Commande.user)
     ).filter(
         Commande.userId == user_id,
@@ -254,7 +255,8 @@ def get_my_commande(
     restaurant_id: UUID,
 ):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas),
         joinedload(Commande.user)
     ).filter(
         Commande.id == commande_id,
@@ -272,7 +274,8 @@ def get_commandes(
 ):
 
     return db.query(Commande).options(
-        joinedload(Commande.articles),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas),
         joinedload(Commande.user)
     ).filter(
         Commande.restaurantId == restaurant_id,
@@ -291,7 +294,8 @@ def get_commande(
 ):
 
     query = db.query(Commande).options(
-        joinedload(Commande.articles),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas),
         joinedload(Commande.user)
     ).filter(
         Commande.id == commande_id,

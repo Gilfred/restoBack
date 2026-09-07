@@ -106,7 +106,8 @@ def create_commande(db: Session, commande_data: CommandeCreate, restaurant_id: U
 def get_my_commandes(db: Session, user_id: UUID):
     """Retrieve orders made for/by the currently logged-in serveuse/user."""
     return db.query(Commande).options(
-        joinedload(Commande.articles),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas),
         joinedload(Commande.user)
     ).filter(
         Commande.userId == user_id,
@@ -115,7 +116,8 @@ def get_my_commandes(db: Session, user_id: UUID):
 
 def get_commandes(db: Session, restaurant_id: UUID):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas),
         joinedload(Commande.user)
     ).filter(
         Commande.restaurantId == restaurant_id,
@@ -124,7 +126,8 @@ def get_commandes(db: Session, restaurant_id: UUID):
 
 def get_commande(db: Session, commande_id: UUID):
     return db.query(Commande).options(
-        joinedload(Commande.articles),
+        joinedload(Commande.articles).joinedload(CommandeArticle.boisson),
+        joinedload(Commande.articles).joinedload(CommandeArticle.repas),
         joinedload(Commande.user)
     ).filter(
         Commande.id == commande_id,

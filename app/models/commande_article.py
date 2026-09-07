@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.commande import Commande
+    from app.models.boisson import Boisson
+    from app.models.repas import Repas
 
 class CommandeArticle(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -22,3 +24,5 @@ class CommandeArticle(Base):
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())
 
     commande = relationship("Commande", back_populates="articles")
+    boisson = relationship("Boisson")
+    repas = relationship("Repas")
