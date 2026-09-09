@@ -186,7 +186,7 @@ def test_create_commande_by_article_name():
 
     commande_in = CommandeCreate(
         userId=mock_user.id,
-        articles=[{"nomArticle": "Coca Cola", "qte": 2}]
+        articles=[{"nomBoisson": "Coca Cola", "qte": 2}]
     )
 
     with patch("app.services.commande_service.get_commande") as mock_get_commande:

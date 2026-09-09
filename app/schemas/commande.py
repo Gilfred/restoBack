@@ -9,10 +9,8 @@ from app.schemas.repas import RepasResponse
 class CommandeArticleCreate(BaseModel):
     boissonId: Optional[UUID] = None
     repasId: Optional[UUID] = None
-    nomArticle: Optional[str] = None
     nomBoisson: Optional[str] = None
     nomRepas: Optional[str] = None
-    nom: Optional[str] = None
     qte: int = Field(..., gt=0)
 
 class CommandeArticleResponse(BaseModel):
