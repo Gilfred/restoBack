@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.boisson import Boisson
 from app.schemas.boisson import BoissonCreate, BoissonUpdate
 from uuid import UUID
+from typing import Optional
 
 def create_boisson(db: Session, boisson_data: BoissonCreate, restaurant_id: UUID):
     db_boisson = Boisson(
@@ -13,8 +14,10 @@ def create_boisson(db: Session, boisson_data: BoissonCreate, restaurant_id: UUID
     db.refresh(db_boisson)
     return db_boisson
 
-def get_boissons(db: Session, restaurant_id: UUID):
-    return db.query(Boisson).filter(Boisson.restaurantId == restaurant_id).all()
+def get_boissons(db: Session, restaurant_id: Optional[UUID] = None):
+    if restaurant_id:
+        return db.query(Boisson).filter(Boisson.restaurantId == restaurant_id).all()
+    return db.query(Boisson).all()
 
 def get_boisson(db: Session, boisson_id: UUID, restaurant_id: UUID):
     return db.query(Boisson).filter(

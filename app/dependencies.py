@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 import uuid
-from typing import List
+from typing import List, Optional
 from joserfc import jwt
 from joserfc.jwk import OctKey
 from joserfc.errors import JoseError
@@ -76,6 +76,31 @@ def get_current_user(
         )
 
     return user
+
+def get_optional_current_user(
+    request: Request,
+    db: Session = Depends(get_session),
+    token: Optional[str] = Depends(oauth2_scheme)
+) -> Optional[User]:
+    """Retrieve current user if authenticated, or return None if unauthenticated."""
+    if not token and not request.cookies.get("session_token"):
+        return None
+    try:
+        return get_current_user(request, db, token)
+    except HTTPException:
+        return None
+
+def get_optional_user_restaurant_id(
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_session)
+) -> Optional[uuid.UUID]:
+    """Retrieve restaurant ID if user is authenticated and associated with a restaurant, else None."""
+    if not current_user:
+        return None
+    try:
+        return get_user_restaurant_id(current_user, db)
+    except HTTPException:
+        return None
 
 def require_superadmin(
     current_user: User = Depends(get_current_user),

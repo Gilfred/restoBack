@@ -5,7 +5,7 @@ from datetime import datetime
 from unittest.mock import MagicMock
 from app.main import app
 from app.database import get_session
-from app.dependencies import get_current_user, require_admin, require_manager_cashier, get_user_restaurant_id
+from app.dependencies import get_current_user, require_admin, require_manager_cashier, get_user_restaurant_id, get_optional_user_restaurant_id
 from app.models.user import User
 from app.models.repas import Repas
 
@@ -68,7 +68,6 @@ def test_create_repas(client):
 def test_list_repas(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
 
     repas_obj = Repas(
         id=uuid4(),
@@ -80,9 +79,7 @@ def test_list_repas(client):
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_current_user] = lambda: admin_user
-    app.dependency_overrides[require_manager_cashier] = lambda: admin_user
-    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+    app.dependency_overrides[get_optional_user_restaurant_id] = lambda: restaurant_id
 
     db_mock.query.side_effect = lambda model: MockQuery(repas_obj)
 
@@ -94,6 +91,56 @@ def test_list_repas(client):
     assert len(data) == 1
     assert data[0]["nomRepas"] == "Riz Gras"
     assert data[0]["restaurantId"] == str(restaurant_id)
+
+def test_list_repas_unauthenticated(client):
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+
+    repas_obj = Repas(
+        id=uuid4(),
+        nomRepas="Alloco",
+        prix=1500.0,
+        restaurantId=restaurant_id,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+
+    db_mock.query.side_effect = lambda model: MockQuery(repas_obj)
+
+    response = client.get("/repas/")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["nomRepas"] == "Alloco"
+
+def test_list_repas_with_restaurant_id_query(client):
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+
+    repas_obj = Repas(
+        id=uuid4(),
+        nomRepas="Kedjenou",
+        prix=4000.0,
+        restaurantId=restaurant_id,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+
+    db_mock.query.side_effect = lambda model: MockQuery(repas_obj)
+
+    response = client.get(f"/repas/?restaurant_id={restaurant_id}")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["nomRepas"] == "Kedjenou"
 
 def test_get_repas(client):
     db_mock = MagicMock()

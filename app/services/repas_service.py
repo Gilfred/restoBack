@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.repas import Repas
 from app.schemas.repas import RepasCreate, RepasUpdate
 from uuid import UUID
+from typing import Optional
 
 def create_repas(db: Session, repas_data: RepasCreate, restaurant_id: UUID):
     db_repas = Repas(
@@ -13,8 +14,10 @@ def create_repas(db: Session, repas_data: RepasCreate, restaurant_id: UUID):
     db.refresh(db_repas)
     return db_repas
 
-def get_repas_list(db: Session, restaurant_id: UUID):
-    return db.query(Repas).filter(Repas.restaurantId == restaurant_id).all()
+def get_repas_list(db: Session, restaurant_id: Optional[UUID] = None):
+    if restaurant_id:
+        return db.query(Repas).filter(Repas.restaurantId == restaurant_id).all()
+    return db.query(Repas).all()
 
 def get_repas(db: Session, repas_id: UUID, restaurant_id: UUID):
     return db.query(Repas).filter(
