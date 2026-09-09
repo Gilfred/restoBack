@@ -161,6 +161,42 @@ def test_create_commande_waiter_not_in_restaurant():
     assert exc_info.value.detail == "La serveuse sélectionnée n'appartient pas à votre restaurant"
 
 
+def test_create_commande_by_article_name():
+    db = MagicMock()
+    mock_user = MagicMock(spec=User)
+    mock_user.id = uuid4()
+    restaurant_id = uuid4()
+    mock_user.restaurantId = restaurant_id
+
+    boisson_id = uuid4()
+    mock_boisson = MagicMock(spec=Boisson)
+    mock_boisson.id = boisson_id
+    mock_boisson.restaurantId = restaurant_id
+    mock_boisson.prixVente = 500.0
+
+    def query_side_effect(model):
+        q = MagicMock()
+        if model == User:
+            q.filter().first.return_value = mock_user
+        elif model == Boisson:
+            q.filter().first.return_value = mock_boisson
+        return q
+
+    db.query.side_effect = query_side_effect
+
+    commande_in = CommandeCreate(
+        userId=mock_user.id,
+        articles=[{"nomArticle": "Coca Cola", "qte": 2}]
+    )
+
+    with patch("app.services.commande_service.get_commande") as mock_get_commande:
+        create_commande(db, commande_in, restaurant_id)
+        assert db.add.called
+        added_article = db.add.call_args_list[1][0][0]
+        assert added_article.boissonId == boisson_id
+        assert added_article.prixUnitaire == 500.0
+
+
 def test_create_commande_no_articles():
     db = MagicMock()
     mock_user = MagicMock(spec=User)

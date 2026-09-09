@@ -153,6 +153,34 @@ def create_commande(
             repas_id = article.repasId
             qte = article.qte
 
+            # Si ni boissonId ni repasId n'est fourni, chercher par nom d'article
+            if not boisson_id and not repas_id:
+                item_name = article.nomArticle or article.nomBoisson or article.nomRepas or article.nom
+                if item_name:
+                    item_name_clean = item_name.strip()
+                    # Chercher d'abord dans les boissons du restaurant
+                    boisson_match = db.query(Boisson).filter(
+                        Boisson.restaurantId == restaurant_id,
+                        func.lower(Boisson.nomBoisson) == func.lower(item_name_clean)
+                    ).first()
+
+                    if boisson_match:
+                        boisson_id = boisson_match.id
+                    else:
+                        # Chercher dans les repas du restaurant
+                        repas_match = db.query(Repas).filter(
+                            Repas.restaurantId == restaurant_id,
+                            func.lower(Repas.nomRepas) == func.lower(item_name_clean)
+                        ).first()
+
+                        if repas_match:
+                            repas_id = repas_match.id
+                        else:
+                            raise HTTPException(
+                                status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f"Aucun article (boisson ou repas) trouvé avec le nom '{item_name}' dans votre restaurant"
+                            )
+
             if boisson_id and repas_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -162,7 +190,7 @@ def create_commande(
             if not boisson_id and not repas_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Chaque article doit avoir un boissonId ou un repasId"
+                    detail="Chaque article doit avoir un boissonId, un repasId ou un nom d'article valide"
                 )
 
             if boisson_id:
