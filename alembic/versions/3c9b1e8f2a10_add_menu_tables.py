@@ -1,0 +1,89 @@
+"""add_menu_tables
+
+Revision ID: 3c9b1e8f2a10
+Revises: f58b5a3c56a1
+Create Date: 2026-06-11 12:00:00.000000
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '3c9b1e8f2a10'
+down_revision: Union[str, None] = 'f58b5a3c56a1'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    # Create Enum type for menu categorie
+    menucategorienom_enum = sa.Enum('CLASSIQUE', 'SPECIALITE', 'PREMIUM', name='menucategorienom')
+    menucategorienom_enum.create(op.get_bind(), checkfirst=True)
+
+    op.create_table('menufamille',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('restaurantId', sa.UUID(), nullable=True),
+        sa.Column('nom', sa.String(length=255), nullable=False),
+        sa.Column('ordre', sa.Integer(), nullable=True),
+        sa.Column('createdAt', sa.DateTime(), nullable=True),
+        sa.Column('updatedAt', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['restaurantId'], ['restaurant.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+    op.create_table('menufamilleimage',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('familleId', sa.UUID(), nullable=False),
+        sa.Column('imageUrl', sa.String(length=500), nullable=False),
+        sa.Column('ordre', sa.Integer(), nullable=True),
+        sa.ForeignKeyConstraint(['familleId'], ['menufamille.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+    op.create_table('menucategorie',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('menuFamilleId', sa.UUID(), nullable=True),
+        sa.Column('nom', sa.Enum('CLASSIQUE', 'SPECIALITE', 'PREMIUM', name='menucategorienom'), nullable=False),
+        sa.Column('ordre', sa.Integer(), nullable=True),
+        sa.Column('createdAt', sa.DateTime(), nullable=True),
+        sa.Column('updatedAt', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['menuFamilleId'], ['menufamille.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+    op.create_table('menurepas',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('menuCategorieId', sa.UUID(), nullable=True),
+        sa.Column('repasId', sa.UUID(), nullable=True),
+        sa.Column('ordre', sa.Integer(), nullable=True),
+        sa.Column('createdAt', sa.DateTime(), nullable=True),
+        sa.Column('updatedAt', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['menuCategorieId'], ['menucategorie.id'], ),
+        sa.ForeignKeyConstraint(['repasId'], ['repas.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+    op.create_table('menuboisson',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('boissonId', sa.UUID(), nullable=True),
+        sa.Column('ordre', sa.Integer(), nullable=True),
+        sa.Column('imageUrl', sa.String(length=500), nullable=True),
+        sa.Column('createdAt', sa.DateTime(), nullable=True),
+        sa.Column('updatedAt', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['boissonId'], ['boisson.id'], ),
+        sa.PrimaryKeyConstraint('id')
+    )
+
+
+def downgrade() -> None:
+    op.drop_table('menuboisson')
+    op.drop_table('menurepas')
+    op.drop_table('menucategorie')
+    op.drop_table('menufamilleimage')
+    op.drop_table('menufamille')
+
+    menucategorienom_enum = sa.Enum('CLASSIQUE', 'SPECIALITE', 'PREMIUM', name='menucategorienom')
+    menucategorienom_enum.drop(op.get_bind(), checkfirst=True)
