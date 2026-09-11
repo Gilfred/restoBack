@@ -20,3 +20,8 @@ from app.models.commande import Commande
 from app.models.commande_article import CommandeArticle
 from app.models.methode_payment import MethodePayment
 from app.models.reglement_facture import ReglementFacture
+from app.models.menu_famille import MenuFamille
+from app.models.menu_famille_image import MenuFamilleImage
+from app.models.menu_categorie import MenuCategorie
+from app.models.menu_repas import MenuRepas
+from app.models.menu_boisson import MenuBoisson
