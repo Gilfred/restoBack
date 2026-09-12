@@ -32,3 +32,8 @@ class UserRestaurantStatus(str, Enum):
     PENDING = "PENDING"
     ACTIVE = "ACTIVE"
     REJECTED = "REJECTED"
+
+class MenuCategorieNom(str, Enum):
+    CLASSIQUE = "classique"
+    SPECIALITE = "spécialité"
+    PREMIUM = "premium"
