@@ -35,7 +35,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY"),
+    secret_key=os.getenv("SECRET_KEY", "your-secret-key"),
     same_site="none",    #Permet le cookie entre domaines différents (frontend/backend séparés)
     https_only=True,        # Remplace secure=True pour les anciennes versions de Starlette
 )
@@ -44,7 +44,9 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        FRONTEND_URL,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        # "https://grandresto.gilexist.workers.dev",
     ],
     allow_credentials=True,
     allow_methods=["*"],
