@@ -31,7 +31,6 @@ app = FastAPI(
 )
 
 # Add SessionMiddleware for Authlib
-FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 app.add_middleware(
     SessionMiddleware,
