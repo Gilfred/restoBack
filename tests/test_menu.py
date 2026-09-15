@@ -185,7 +185,9 @@ def test_get_public_menu_display_populated(client):
     assert data["familles"][0]["categories"][0]["repasList"][0]["repas"]["nomRepas"] == "Burger Chef"
     assert data["boissons"][0]["boisson"]["nomBoisson"] == "Jus de Pomme"
 
-def test_upload_center_reference_endpoint(client):
+from unittest.mock import patch
+
+def test_upload_center_presign_and_complete_endpoints(client):
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
     restaurant_id = uuid4()
 
@@ -193,13 +195,45 @@ def test_upload_center_reference_endpoint(client):
     app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    payload = {"imageUrl": "https://uploadcenter.service/v1/image123.jpg"}
-    response = client.post("/menus/upload-center/reference", json=payload)
-    app.dependency_overrides.clear()
+    with patch("app.services.upload_center_service.presign_upload") as mock_presign, \
+         patch("app.services.upload_center_service.complete_upload") as mock_complete:
 
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["imageUrl"] == "https://uploadcenter.service/v1/image123.jpg"
+        mock_presign.return_value = {
+            "file_id": "file_abc123",
+            "upload_url": "https://api.uploadscenter.com/presigned-put-url",
+            "expires_in": 3600
+        }
+        mock_complete.return_value = {
+            "id": "file_abc123",
+            "url": "https://cdn.uploadscenter.com/public/image123.png",
+            "status": "completed",
+            "original_name": "menu_plat.png",
+            "mime_type": "image/png",
+            "size_bytes": 1024,
+            "visibility": "public"
+        }
+
+        # 1. Presign upload
+        presign_payload = {
+            "filename": "menu_plat.png",
+            "sizeBytes": 1024,
+            "mimeType": "image/png"
+        }
+        res_presign = client.post("/menus/upload-center/presign", json=presign_payload)
+        assert res_presign.status_code == 200, res_presign.text
+        data_presign = res_presign.json()
+        assert data_presign["file_id"] == "file_abc123"
+        assert data_presign["upload_url"] == "https://api.uploadscenter.com/presigned-put-url"
+
+        # 2. Complete upload
+        complete_payload = {"file_id": "file_abc123"}
+        res_complete = client.post("/menus/upload-center/complete", json=complete_payload)
+        assert res_complete.status_code == 200, res_complete.text
+        data_complete = res_complete.json()
+        assert data_complete["id"] == "file_abc123"
+        assert data_complete["url"] == "https://cdn.uploadscenter.com/public/image123.png"
+
+    app.dependency_overrides.clear()
 
 def test_crud_menu_famille(client):
     db_mock = MagicMock()

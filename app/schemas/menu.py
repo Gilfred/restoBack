@@ -164,9 +164,24 @@ class MenuDisplayResponse(BaseModel):
 
 
 # --- UploadCenter Schemas ---
-class UploadCenterImageReference(BaseModel):
-    imageUrl: str
+class UploadCenterPresignRequest(BaseModel):
+    filename: str
+    sizeBytes: int
+    mimeType: str
 
-class UploadCenterResponse(BaseModel):
-    imageUrl: str
-    message: str = "Image reference validated for UploadCenter"
+class UploadCenterPresignResponse(BaseModel):
+    file_id: str
+    upload_url: str
+    expires_in: int
+
+class UploadCenterCompleteRequest(BaseModel):
+    file_id: str
+
+class UploadCenterCompleteResponse(BaseModel):
+    id: str
+    url: Optional[str] = None
+    status: str
+    original_name: str
+    mime_type: str
+    size_bytes: int
+    visibility: str

@@ -14,4 +14,5 @@ authlib
 python-multipart
 joserfc
 itsdangerous
-fastapi-mail==1.6.5 
+fastapi-mail==1.6.5
+uploadcenter

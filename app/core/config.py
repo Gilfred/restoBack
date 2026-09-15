@@ -37,5 +37,10 @@ class Settings(BaseSettings):
     SEED_SUPERADMIN_EMAIL: str
     SEED_SUPERADMIN_PASSWORD: str
 
+    # UploadCenter Integration
+    UPLOADCENTER_API_KEY: Optional[str] = "sk_dummy_key"
+    UPLOADCENTER_PROJECT_ID: str = "project_01M2HD50ANG3DH1D6YE7A0ZY1C"
+    UPLOADCENTER_BASE_URL: str = "https://api.uploadscenter.com"
+
 
 settings = Settings()

@@ -12,9 +12,10 @@ from app.schemas.menu import (
     MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
-    UploadCenterImageReference, UploadCenterResponse
+    UploadCenterPresignRequest, UploadCenterPresignResponse,
+    UploadCenterCompleteRequest, UploadCenterCompleteResponse
 )
-from app.services import menu_service
+from app.services import menu_service, upload_center_service
 
 router = APIRouter()
 
@@ -32,28 +33,35 @@ def get_public_menu_display(restaurant_id: UUID, db: Session = Depends(get_sessi
 
 
 # ==========================================
-# UPLOADCENTER INTEGRATION ENDPOINT
+# UPLOADCENTER INTEGRATION ENDPOINTS
 # ==========================================
 
-@router.post("/upload-center/reference", response_model=UploadCenterResponse)
-def register_upload_center_image(
-    ref: UploadCenterImageReference,
+@router.post("/upload-center/presign", response_model=UploadCenterPresignResponse)
+def presign_upload_center_image(
+    req: UploadCenterPresignRequest,
     restaurant_id: UUID = Depends(get_user_restaurant_id),
     admin_user = Depends(require_admin)
 ):
     """
-    Validation et enregistrement de référence d'image UploadCenter pour le restaurant.
-    Gilexis backend ne sauvegarde aucun fichier binaire localement.
+    Génère une URL d'upload présignée via UploadCenter (avec visibility='public').
+    Le frontend envoie le fichier directement à `upload_url` via HTTP PUT.
     """
-    if not ref.imageUrl or not ref.imageUrl.startswith(("http://", "https://")):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL d'image UploadCenter invalide"
-        )
-    return UploadCenterResponse(
-        imageUrl=ref.imageUrl,
-        message="Référence d'image UploadCenter validée"
+    return upload_center_service.presign_upload(
+        filename=req.filename,
+        size_bytes=req.sizeBytes,
+        mime_type=req.mimeType
     )
+
+@router.post("/upload-center/complete", response_model=UploadCenterCompleteResponse)
+def complete_upload_center_image(
+    req: UploadCenterCompleteRequest,
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
+):
+    """
+    Confirme l'upload auprès d'UploadCenter et retourne l'objet FileOut contenant l'URL publique de l'image.
+    """
+    return upload_center_service.complete_upload(file_id=req.file_id)
 
 
 # ==========================================
