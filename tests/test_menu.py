@@ -431,3 +431,31 @@ def test_modification_requires_admin(client):
     payload = {"nom": "Unauthorized Famille"}
     response = client.post("/menus/familles", json=payload)
     assert response.status_code in (401, 403)
+
+def test_direct_file_upload_endpoint(client):
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
+    restaurant_id = uuid4()
+
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[require_admin] = lambda: admin_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    with patch("app.services.upload_center_service.upload_file_content") as mock_upload:
+        mock_upload.return_value = {
+            "id": "file_file123",
+            "url": "https://cdn.uploadscenter.com/public/my_photo.png",
+            "status": "completed",
+            "original_name": "my_photo.png",
+            "mime_type": "image/png",
+            "size_bytes": 12,
+            "visibility": "public"
+        }
+
+        files = {"file": ("my_photo.png", b"fake image bytes", "image/png")}
+        response = client.post("/menus/upload", files=files)
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["id"] == "file_file123"
+        assert data["url"] == "https://cdn.uploadscenter.com/public/my_photo.png"

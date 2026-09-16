@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -70,6 +70,25 @@ def complete_upload_center_image(
     Confirme l'upload auprès d'UploadCenter et retourne l'objet FileOut contenant l'URL publique de l'image.
     """
     return upload_center_service.complete_upload(file_id=req.file_id)
+
+@router.post("/upload", response_model=UploadCenterCompleteResponse)
+def upload_menu_image_file(
+    file: UploadFile = File(...),
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
+):
+    """
+    Endpoint multipart permettant de sélectionner et téléverser directement un fichier image depuis ses dossiers.
+    Transfère l'image à UploadCenter et retourne l'URL publique.
+    """
+    contents = file.file.read()
+    filename = file.filename or "image.png"
+    mime_type = file.content_type or "image/png"
+    return upload_center_service.upload_file_content(
+        filename=filename,
+        file_bytes=contents,
+        mime_type=mime_type
+    )
 
 
 # ==========================================
