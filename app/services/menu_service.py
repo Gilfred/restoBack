@@ -21,6 +21,17 @@ from app.schemas.menu import (
 
 
 # --- Full Menu Display Service ---
+def get_all_restaurants_menus(db: Session) -> List[dict]:
+    """
+    Récupère la liste de l'affichage complet des menus de chaque restaurant.
+    """
+    restaurants = db.query(Restaurant).all()
+    results = []
+    for restaurant in restaurants:
+        results.append(get_full_restaurant_menu(db, restaurant.id))
+    return results
+
+
 def get_full_restaurant_menu(db: Session, restaurant_id: UUID):
     # 1. Fetch Restaurant to ensure existence
     restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
@@ -80,20 +91,17 @@ def create_menu_famille(db: Session, famille_data: MenuFamilleCreate, restaurant
     db.refresh(famille)
     return famille
 
-def get_menu_familles(db: Session, restaurant_id: UUID) -> List[MenuFamille]:
-    return (
-        db.query(MenuFamille)
-        .filter(MenuFamille.restaurantId == restaurant_id)
-        .order_by(MenuFamille.ordre.asc())
-        .all()
-    )
+def get_menu_familles(db: Session, restaurant_id: Optional[UUID] = None) -> List[MenuFamille]:
+    query = db.query(MenuFamille)
+    if restaurant_id:
+        query = query.filter(MenuFamille.restaurantId == restaurant_id)
+    return query.order_by(MenuFamille.ordre.asc()).all()
 
-def get_menu_famille(db: Session, famille_id: UUID, restaurant_id: UUID) -> Optional[MenuFamille]:
-    return (
-        db.query(MenuFamille)
-        .filter(MenuFamille.id == famille_id, MenuFamille.restaurantId == restaurant_id)
-        .first()
-    )
+def get_menu_famille(db: Session, famille_id: UUID, restaurant_id: Optional[UUID] = None) -> Optional[MenuFamille]:
+    query = db.query(MenuFamille).filter(MenuFamille.id == famille_id)
+    if restaurant_id:
+        query = query.filter(MenuFamille.restaurantId == restaurant_id)
+    return query.first()
 
 def update_menu_famille(db: Session, famille_id: UUID, famille_data: MenuFamilleUpdate, restaurant_id: UUID) -> Optional[MenuFamille]:
     famille = get_menu_famille(db, famille_id, restaurant_id)

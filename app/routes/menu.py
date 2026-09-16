@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.database import get_session
-from app.dependencies import get_user_restaurant_id, require_admin
+from app.dependencies import get_user_restaurant_id, get_optional_user_restaurant_id, require_admin
 from app.schemas.menu import (
     MenuDisplayResponse,
     MenuFamilleCreate, MenuFamilleUpdate, MenuFamilleResponse,
@@ -22,6 +22,14 @@ router = APIRouter()
 # ==========================================
 # PUBLIC ENDPOINTS (No Authentication Required)
 # ==========================================
+
+@router.get("/display", response_model=List[MenuDisplayResponse])
+def get_all_public_menus_display(db: Session = Depends(get_session)):
+    """
+    Endpoint public permettant de récupérer l'affichage complet des menus de tous les restaurants.
+    """
+    return menu_service.get_all_restaurants_menus(db)
+
 
 @router.get("/display/{restaurant_id}", response_model=MenuDisplayResponse)
 def get_public_menu_display(restaurant_id: UUID, db: Session = Depends(get_session)):
@@ -81,20 +89,24 @@ def create_famille(
 
 @router.get("/familles", response_model=List[MenuFamilleResponse])
 def list_familles(
+    restaurant_id: Optional[UUID] = Query(None),
+    restaurantId: Optional[UUID] = Query(None),
     db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
+    user_restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
 ):
-    return menu_service.get_menu_familles(db, restaurant_id)
+    target_restaurant_id = restaurant_id or restaurantId or user_restaurant_id
+    return menu_service.get_menu_familles(db, target_restaurant_id)
 
 @router.get("/familles/{famille_id}", response_model=MenuFamilleResponse)
 def get_famille(
     famille_id: UUID,
+    restaurant_id: Optional[UUID] = Query(None),
+    restaurantId: Optional[UUID] = Query(None),
     db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
+    user_restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
 ):
-    famille = menu_service.get_menu_famille(db, famille_id, restaurant_id)
+    target_restaurant_id = restaurant_id or restaurantId or user_restaurant_id
+    famille = menu_service.get_menu_famille(db, famille_id, target_restaurant_id)
     if not famille:
         raise HTTPException(status_code=404, detail="Famille non trouvée")
     return famille
