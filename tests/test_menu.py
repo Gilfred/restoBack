@@ -138,7 +138,7 @@ def test_get_public_menu_display_populated(client):
     famille_img = MenuFamilleImage(
         id=uuid4(),
         familleId=famille_id,
-        imageUrl="https://uploadcenter.com/img1.png",
+        imageUrl="https://res.cloudinary.com/demo/image/upload/img1.png",
         ordre=1
     )
 
@@ -157,7 +157,7 @@ def test_get_public_menu_display_populated(client):
         id=uuid4(),
         boissonId=boisson_id,
         ordre=1,
-        imageUrl="https://uploadcenter.com/boisson1.png",
+        imageUrl="https://res.cloudinary.com/demo/image/upload/boisson1.png",
         boisson=boisson_obj,
         createdAt=datetime.now(),
         updatedAt=datetime.now()
@@ -180,14 +180,14 @@ def test_get_public_menu_display_populated(client):
     assert data["restaurant"]["name"] == "Gourmet Heaven"
     assert len(data["familles"]) == 1
     assert data["familles"][0]["nom"] == "Plats principaux"
-    assert data["familles"][0]["images"][0]["imageUrl"] == "https://uploadcenter.com/img1.png"
+    assert data["familles"][0]["images"][0]["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/img1.png"
     assert data["familles"][0]["categories"][0]["nom"] == MenuCategorieNom.SPECIALITE
     assert data["familles"][0]["categories"][0]["repasList"][0]["repas"]["nomRepas"] == "Burger Chef"
     assert data["boissons"][0]["boisson"]["nomBoisson"] == "Jus de Pomme"
 
 from unittest.mock import patch
 
-def test_upload_center_presign_and_complete_endpoints(client):
+def test_cloudinary_upload_endpoint(client):
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
     restaurant_id = uuid4()
 
@@ -195,45 +195,20 @@ def test_upload_center_presign_and_complete_endpoints(client):
     app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    with patch("app.services.upload_center_service.presign_upload") as mock_presign, \
-         patch("app.services.upload_center_service.complete_upload") as mock_complete:
-
-        mock_presign.return_value = {
-            "file_id": "file_abc123",
-            "upload_url": "https://api.uploadscenter.com/presigned-put-url",
-            "expires_in": 3600
-        }
-        mock_complete.return_value = {
-            "id": "file_abc123",
-            "url": "https://cdn.uploadscenter.com/public/image123.png",
-            "status": "completed",
-            "original_name": "menu_plat.png",
-            "mime_type": "image/png",
-            "size_bytes": 1024,
-            "visibility": "public"
+    with patch("app.services.cloudinary_service.upload_image") as mock_upload:
+        mock_upload.return_value = {
+            "url": "https://res.cloudinary.com/dummy/image/upload/v12345678/gilexis/menu/sample.jpg",
+            "public_id": "gilexis/menu/sample"
         }
 
-        # 1. Presign upload
-        presign_payload = {
-            "filename": "menu_plat.png",
-            "sizeBytes": 1024,
-            "mimeType": "image/png"
-        }
-        res_presign = client.post("/menus/upload-center/presign", json=presign_payload)
-        assert res_presign.status_code == 200, res_presign.text
-        data_presign = res_presign.json()
-        assert data_presign["file_id"] == "file_abc123"
-        assert data_presign["upload_url"] == "https://api.uploadscenter.com/presigned-put-url"
+        files = {"file": ("sample.jpg", b"fake image content", "image/jpeg")}
+        response = client.post("/menus/upload", files=files)
+        app.dependency_overrides.clear()
 
-        # 2. Complete upload
-        complete_payload = {"file_id": "file_abc123"}
-        res_complete = client.post("/menus/upload-center/complete", json=complete_payload)
-        assert res_complete.status_code == 200, res_complete.text
-        data_complete = res_complete.json()
-        assert data_complete["id"] == "file_abc123"
-        assert data_complete["url"] == "https://cdn.uploadscenter.com/public/image123.png"
-
-    app.dependency_overrides.clear()
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["url"] == "https://res.cloudinary.com/dummy/image/upload/v12345678/gilexis/menu/sample.jpg"
+        assert data["public_id"] == "gilexis/menu/sample"
 
 def test_crud_menu_famille(client):
     db_mock = MagicMock()
@@ -305,7 +280,7 @@ def test_menu_famille_image_upload_center_reference(client):
 
     payload = {
         "familleId": str(famille_id),
-        "imageUrl": "https://uploadcenter.cloud/images/famille_hot.jpg",
+        "imageUrl": "https://res.cloudinary.com/demo/image/upload/famille_hot.jpg",
         "ordre": 1
     }
     response = client.post("/menus/famille-images", json=payload)
@@ -313,7 +288,7 @@ def test_menu_famille_image_upload_center_reference(client):
 
     assert response.status_code == 201, response.text
     data = response.json()
-    assert data["imageUrl"] == "https://uploadcenter.cloud/images/famille_hot.jpg"
+    assert data["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/famille_hot.jpg"
     assert data["familleId"] == str(famille_id)
 
 def test_multi_tenant_isolation_repas_association(client):

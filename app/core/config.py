@@ -37,10 +37,10 @@ class Settings(BaseSettings):
     SEED_SUPERADMIN_EMAIL: str
     SEED_SUPERADMIN_PASSWORD: str
 
-    # UploadCenter Integration
-    UPLOADCENTER_API_KEY: Optional[str]
-    UPLOADCENTER_PROJECT_ID: str 
-    UPLOADCENTER_BASE_URL: str 
+    # Cloudinary Integration
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
 
 
 settings = Settings()

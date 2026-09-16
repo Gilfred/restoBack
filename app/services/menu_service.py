@@ -116,7 +116,7 @@ def delete_menu_famille(db: Session, famille_id: UUID, restaurant_id: UUID) -> b
     return True
 
 
-# --- MenuFamilleImage Services (UploadCenter integration) ---
+# --- MenuFamilleImage Services ---
 def create_menu_famille_image(db: Session, image_data: MenuFamilleImageCreate, restaurant_id: UUID) -> MenuFamilleImage:
     # Verify famille belongs to restaurant
     famille = get_menu_famille(db, image_data.familleId, restaurant_id)

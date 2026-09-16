@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -12,10 +12,9 @@ from app.schemas.menu import (
     MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
-    UploadCenterPresignRequest, UploadCenterPresignResponse,
-    UploadCenterCompleteRequest, UploadCenterCompleteResponse
+    MenuImageUploadResponse
 )
-from app.services import menu_service, upload_center_service
+from app.services import menu_service, cloudinary_service
 
 router = APIRouter()
 
@@ -33,35 +32,29 @@ def get_public_menu_display(restaurant_id: UUID, db: Session = Depends(get_sessi
 
 
 # ==========================================
-# UPLOADCENTER INTEGRATION ENDPOINTS
+# IMAGE UPLOAD ENDPOINT (Cloudinary)
 # ==========================================
 
-@router.post("/upload-center/presign", response_model=UploadCenterPresignResponse)
-def presign_upload_center_image(
-    req: UploadCenterPresignRequest,
+@router.post("/upload", response_model=MenuImageUploadResponse)
+def upload_menu_image(
+    file: UploadFile = File(...),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
     admin_user = Depends(require_admin)
 ):
     """
-    Génère une URL d'upload présignée via UploadCenter (avec visibility='public').
-    Le frontend envoie le fichier directement à `upload_url` via HTTP PUT.
+    Upload une image de menu vers Cloudinary via multipart/form-data.
+    Retourne l'URL publique HTTPS de l'image.
     """
-    return upload_center_service.presign_upload(
-        filename=req.filename,
-        size_bytes=req.sizeBytes,
-        mime_type=req.mimeType
-    )
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seuls les fichiers de type image (JPEG, PNG, WEBP, etc.) sont autorisés"
+        )
 
-@router.post("/upload-center/complete", response_model=UploadCenterCompleteResponse)
-def complete_upload_center_image(
-    req: UploadCenterCompleteRequest,
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    """
-    Confirme l'upload auprès d'UploadCenter et retourne l'objet FileOut contenant l'URL publique de l'image.
-    """
-    return upload_center_service.complete_upload(file_id=req.file_id)
+    contents = file.file.read()
+    filename = file.filename or "image.png"
+
+    return cloudinary_service.upload_image(file_bytes=contents, filename=filename)
 
 
 # ==========================================
@@ -122,7 +115,7 @@ def delete_famille(
     return None
 
 
-# --- Menu Famille Images (UploadCenter References) ---
+# --- Menu Famille Images ---
 
 @router.post("/famille-images", response_model=MenuFamilleImageResponse, status_code=status.HTTP_201_CREATED)
 def create_famille_image(
