@@ -5,7 +5,6 @@ from uploadcenter.generated.api.uploads import (
     complete_upload_endpoint_v1_uploads_complete_post
 )
 from fastapi import HTTPException, status
-import httpx
 from app.core.config import settings
 
 def get_uploadcenter_client():
@@ -50,35 +49,6 @@ def presign_upload(filename: str, size_bytes: int, mime_type: str):
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Erreur d'intégration UploadCenter presign: {str(e)}"
         )
-
-def upload_file_content(filename: str, file_bytes: bytes, mime_type: str):
-    size_bytes = len(file_bytes)
-    presign_res = presign_upload(filename=filename, size_bytes=size_bytes, mime_type=mime_type)
-    file_id = presign_res["file_id"]
-    upload_url = presign_res["upload_url"]
-
-    try:
-        with httpx.Client() as http_client:
-            put_res = http_client.put(
-                upload_url,
-                content=file_bytes,
-                headers={"Content-Type": mime_type or "application/octet-stream"}
-            )
-            if put_res.status_code not in (200, 201, 204):
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"Échec du téléversement vers l'URL d'upload UploadCenter (statut {put_res.status_code})"
-                )
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Erreur lors de l'envoi du fichier vers UploadCenter: {str(e)}"
-        )
-
-    return complete_upload(file_id=file_id)
-
 
 def complete_upload(file_id: str):
     client = get_uploadcenter_client()

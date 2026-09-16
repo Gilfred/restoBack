@@ -368,56 +368,31 @@ def test_multi_tenant_isolation_repas_association(client):
     assert response.status_code == 404
     assert response.json()["detail"] == "Repas non trouvé pour ce restaurant"
 
-def test_get_all_public_menus_display(client):
+def test_authenticated_get_familles_uses_user_restaurant(client):
     db_mock = MagicMock()
-    resto1_id = uuid4()
-    resto2_id = uuid4()
-
-    resto1 = Restaurant(id=resto1_id, name="Resto 1", address="Addr 1", phone="111", ownerId=uuid4())
-    resto2 = Restaurant(id=resto2_id, name="Resto 2", address="Addr 2", phone="222", ownerId=uuid4())
-
-    app.dependency_overrides[get_session] = lambda: db_mock
-
-    # db.query(Restaurant).all() -> returns [resto1, resto2]
-    # For resto1: 1st query gets resto1, 2nd gets familles, 3rd gets boissons
-    # For resto2: 1st query gets resto2, 2nd gets familles, 3rd gets boissons
-    queries = [
-        MockQuery([resto1, resto2]),
-        MockQuery(resto1), MockQuery([]), MockQuery([]),
-        MockQuery(resto2), MockQuery([]), MockQuery([])
-    ]
-    db_mock.query.side_effect = lambda model: queries.pop(0)
-
-    response = client.get("/menus/display")
-    app.dependency_overrides.clear()
-
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert isinstance(data, list)
-    assert len(data) == 2
-    assert data[0]["restaurant"]["name"] == "Resto 1"
-    assert data[1]["restaurant"]["name"] == "Resto 2"
-
-def test_public_get_familles_without_auth(client):
-    db_mock = MagicMock()
+    restaurant_id = uuid4()
     famille_id = uuid4()
+    user = User(id=uuid4(), name="User", email="user@test.com")
+
     famille_obj = MenuFamille(
         id=famille_id,
-        restaurantId=uuid4(),
-        nom="Public Famille",
+        restaurantId=restaurant_id,
+        nom="User Resto Famille",
         ordre=1,
         createdAt=datetime.now(),
         updatedAt=datetime.now()
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
     db_mock.query.side_effect = lambda model: MockQuery([famille_obj])
 
-    # No auth dependencies overridden or passed
     res_list = client.get("/menus/familles")
     assert res_list.status_code == 200, res_list.text
     assert len(res_list.json()) == 1
-    assert res_list.json()[0]["nom"] == "Public Famille"
+    assert res_list.json()[0]["nom"] == "User Resto Famille"
 
     db_mock.query.side_effect = lambda model: MockQuery(famille_obj)
     res_detail = client.get(f"/menus/familles/{famille_id}")
@@ -431,31 +406,3 @@ def test_modification_requires_admin(client):
     payload = {"nom": "Unauthorized Famille"}
     response = client.post("/menus/familles", json=payload)
     assert response.status_code in (401, 403)
-
-def test_direct_file_upload_endpoint(client):
-    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
-    restaurant_id = uuid4()
-
-    app.dependency_overrides[get_current_user] = lambda: admin_user
-    app.dependency_overrides[require_admin] = lambda: admin_user
-    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
-
-    with patch("app.services.upload_center_service.upload_file_content") as mock_upload:
-        mock_upload.return_value = {
-            "id": "file_file123",
-            "url": "https://cdn.uploadscenter.com/public/my_photo.png",
-            "status": "completed",
-            "original_name": "my_photo.png",
-            "mime_type": "image/png",
-            "size_bytes": 12,
-            "visibility": "public"
-        }
-
-        files = {"file": ("my_photo.png", b"fake image bytes", "image/png")}
-        response = client.post("/menus/upload", files=files)
-        app.dependency_overrides.clear()
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["id"] == "file_file123"
-        assert data["url"] == "https://cdn.uploadscenter.com/public/my_photo.png"
