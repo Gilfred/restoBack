@@ -18,6 +18,7 @@ from app.schemas.menu import (
     MenuRepasCreate, MenuRepasUpdate,
     MenuBoissonCreate, MenuBoissonUpdate
 )
+from app.services import cloudinary_service
 
 
 # --- Full Menu Display Service ---
@@ -117,6 +118,57 @@ def delete_menu_famille(db: Session, famille_id: UUID, restaurant_id: UUID) -> b
 
 
 # --- MenuFamilleImage Services ---
+def upload_and_create_famille_image(
+    db: Session,
+    famille_id: UUID,
+    file_bytes: bytes,
+    filename: str,
+    ordre: int,
+    restaurant_id: UUID
+) -> dict:
+    # 1. Verify famille exists and belongs to user's restaurant BEFORE uploading
+    famille = get_menu_famille(db, famille_id, restaurant_id)
+    if not famille:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Famille de menu non trouvée pour ce restaurant"
+        )
+
+    # 2. Upload image to Cloudinary
+    res = cloudinary_service.upload_image(file_bytes=file_bytes, filename=filename)
+    image_url = res.get("url")
+    public_id = res.get("public_id")
+
+    # 3. Create MenuFamilleImage record in DB
+    image = MenuFamilleImage(
+        familleId=famille_id,
+        imageUrl=image_url,
+        ordre=ordre or 0
+    )
+
+    try:
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+        return {
+            "id": image.id,
+            "familleId": image.familleId,
+            "imageUrl": image.imageUrl,
+            "ordre": image.ordre,
+            "public_id": public_id
+        }
+    except Exception as e:
+        db.rollback()
+        if public_id:
+            cloudinary_service.delete_image(public_id)
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Échec de l'enregistrement de l'image en base de données: {str(e)}"
+        )
+
+
 def create_menu_famille_image(db: Session, image_data: MenuFamilleImageCreate, restaurant_id: UUID) -> MenuFamilleImage:
     # Verify famille belongs to restaurant
     famille = get_menu_famille(db, image_data.familleId, restaurant_id)

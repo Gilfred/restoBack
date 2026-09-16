@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -12,7 +12,7 @@ from app.schemas.menu import (
     MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
-    MenuImageUploadResponse
+    MenuFamilleImageUploadResponse
 )
 from app.services import menu_service, cloudinary_service
 
@@ -35,15 +35,17 @@ def get_public_menu_display(restaurant_id: UUID, db: Session = Depends(get_sessi
 # IMAGE UPLOAD ENDPOINT (Cloudinary)
 # ==========================================
 
-@router.post("/upload", response_model=MenuImageUploadResponse)
+@router.post("/upload", response_model=MenuFamilleImageUploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_menu_image(
     file: UploadFile = File(...),
+    famille_id: UUID = Form(...),
+    ordre: int = Form(0),
+    db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
     admin_user = Depends(require_admin)
 ):
     """
-    Upload une image de menu vers Cloudinary via multipart/form-data.
-    Retourne l'URL publique HTTPS de l'image.
+    Téléverse une image vers Cloudinary et enregistre la ligne MenuFamilleImage en BDD en une seule opération.
     """
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -54,7 +56,14 @@ def upload_menu_image(
     contents = file.file.read()
     filename = file.filename or "image.png"
 
-    return cloudinary_service.upload_image(file_bytes=contents, filename=filename)
+    return menu_service.upload_and_create_famille_image(
+        db=db,
+        famille_id=famille_id,
+        file_bytes=contents,
+        filename=filename,
+        ordre=ordre,
+        restaurant_id=restaurant_id
+    )
 
 
 # ==========================================

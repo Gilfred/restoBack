@@ -41,3 +41,15 @@ def upload_image(file_bytes: bytes, filename: str) -> dict:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Erreur d'intégration Cloudinary: {str(e)}"
         )
+
+def delete_image(public_id: str):
+    """
+    Supprime une image sur Cloudinary à l'aide de son public_id.
+    """
+    if not public_id:
+        return
+    init_cloudinary()
+    try:
+        cloudinary.uploader.destroy(public_id)
+    except Exception:
+        pass
