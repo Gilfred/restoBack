@@ -164,6 +164,11 @@ class MenuDisplayResponse(BaseModel):
 
 
 # --- Image Upload Response Schema ---
-class MenuImageUploadResponse(BaseModel):
-    url: str
+class MenuFamilleImageUploadResponse(BaseModel):
+    id: UUID
+    familleId: UUID
+    imageUrl: str
+    ordre: int
     public_id: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

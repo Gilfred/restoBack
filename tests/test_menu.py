@@ -188,12 +188,29 @@ def test_get_public_menu_display_populated(client):
 from unittest.mock import patch
 
 def test_cloudinary_upload_endpoint(client):
+    db_mock = MagicMock()
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
     restaurant_id = uuid4()
+    famille_id = uuid4()
 
+    famille_obj = MenuFamille(
+        id=famille_id,
+        restaurantId=restaurant_id,
+        nom="Desserts",
+        ordre=1,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
     app.dependency_overrides[get_current_user] = lambda: admin_user
     app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    def mock_add(obj):
+        obj.id = uuid4()
+
+    db_mock.add.side_effect = mock_add
 
     with patch("app.services.cloudinary_service.upload_image") as mock_upload:
         mock_upload.return_value = {
@@ -201,14 +218,27 @@ def test_cloudinary_upload_endpoint(client):
             "public_id": "gilexis/menu/sample"
         }
 
+        # 1. Test with non-existent famille_id -> should return 404 and NOT call Cloudinary
+        db_mock.query.side_effect = lambda model: MockQuery([])
         files = {"file": ("sample.jpg", b"fake image content", "image/jpeg")}
-        response = client.post("/menus/upload", files=files)
-        app.dependency_overrides.clear()
+        data_form = {"famille_id": str(uuid4()), "ordre": "1"}
+        res_404 = client.post("/menus/upload", files=files, data=data_form)
+        assert res_404.status_code == 404
+        assert not mock_upload.called
 
-        assert response.status_code == 200, response.text
+        # 2. Test with valid famille_id -> calls Cloudinary and creates DB record
+        db_mock.query.side_effect = lambda model: MockQuery(famille_obj)
+        data_form = {"famille_id": str(famille_id), "ordre": "1"}
+        response = client.post("/menus/upload", files=files, data=data_form)
+
+        assert response.status_code == 201, response.text
         data = response.json()
-        assert data["url"] == "https://res.cloudinary.com/dummy/image/upload/v12345678/gilexis/menu/sample.jpg"
+        assert data["familleId"] == str(famille_id)
+        assert data["imageUrl"] == "https://res.cloudinary.com/dummy/image/upload/v12345678/gilexis/menu/sample.jpg"
+        assert data["ordre"] == 1
         assert data["public_id"] == "gilexis/menu/sample"
+
+    app.dependency_overrides.clear()
 
 def test_crud_menu_famille(client):
     db_mock = MagicMock()
