@@ -8,7 +8,7 @@ from app.dependencies import get_user_restaurant_id, require_admin
 from app.schemas.menu import (
     MenuDisplayResponse,
     MenuFamilleCreate, MenuFamilleUpdate, MenuFamilleResponse,
-    MenuFamilleImageCreate, MenuFamilleImageUpdate, MenuFamilleImageResponse,
+    MenuFamilleImageUpdate, MenuFamilleImageResponse,
     MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
@@ -125,15 +125,6 @@ def delete_famille(
 
 
 # --- Menu Famille Images ---
-
-@router.post("/famille-images", response_model=MenuFamilleImageResponse, status_code=status.HTTP_201_CREATED)
-def create_famille_image(
-    image_data: MenuFamilleImageCreate,
-    db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    return menu_service.create_menu_famille_image(db, image_data, restaurant_id)
 
 @router.patch("/famille-images/{image_id}", response_model=MenuFamilleImageResponse)
 def update_famille_image(

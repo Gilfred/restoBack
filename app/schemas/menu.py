@@ -12,9 +12,6 @@ class MenuFamilleImageBase(BaseModel):
     imageUrl: str
     ordre: Optional[int] = 0
 
-class MenuFamilleImageCreate(MenuFamilleImageBase):
-    familleId: UUID
-
 class MenuFamilleImageUpdate(BaseModel):
     imageUrl: Optional[str] = None
     ordre: Optional[int] = None
