@@ -147,7 +147,6 @@ class MenuBoissonDisplayResponse(BaseModel):
 class RestaurantSimpleResponse(BaseModel):
     id: UUID
     name: str
-    slug: Optional[str] = None
     address: str
     phone: str
 

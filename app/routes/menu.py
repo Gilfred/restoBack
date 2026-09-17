@@ -22,14 +22,13 @@ router = APIRouter()
 # PUBLIC ENDPOINTS (No Authentication Required)
 # ==========================================
 
-@router.get("/display/{slug}", response_model=MenuDisplayResponse)
-def get_public_menu_display(slug: str, db: Session = Depends(get_session)):
+@router.get("/display/{restaurant_id}", response_model=MenuDisplayResponse)
+def get_public_menu_display(restaurant_id: UUID, db: Session = Depends(get_session)):
     """
     Endpoint public permettant de récupérer l'affichage complet du menu d'un restaurant
-    à partir de son slug (ou identifiant public).
     (Restaurant, Familles, Images, Catégories, Repas, Boissons).
     """
-    return menu_service.get_full_restaurant_menu(db, slug)
+    return menu_service.get_full_restaurant_menu(db, restaurant_id)
 
 
 # ==========================================

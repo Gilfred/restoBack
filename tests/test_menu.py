@@ -51,11 +51,9 @@ class MockQuery:
 def test_get_public_menu_display_empty(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    slug = "test-resto"
     restaurant_obj = Restaurant(
         id=restaurant_id,
         name="Test Resto",
-        slug=slug,
         address="Rue 1",
         phone="123456",
         ownerId=uuid4()
@@ -71,13 +69,12 @@ def test_get_public_menu_display_empty(client):
     ]
     db_mock.query.side_effect = lambda model: queries.pop(0)
 
-    response = client.get(f"/menus/display/{slug}")
+    response = client.get(f"/menus/display/{restaurant_id}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["restaurant"]["id"] == str(restaurant_id)
-    assert data["restaurant"]["slug"] == slug
     assert data["restaurant"]["name"] == "Test Resto"
     assert data["familles"] == []
     assert data["boissons"] == []
@@ -85,7 +82,6 @@ def test_get_public_menu_display_empty(client):
 def test_get_public_menu_display_populated(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    slug = "gourmet-heaven"
     famille_id = uuid4()
     cat_id = uuid4()
     repas_id = uuid4()
@@ -94,7 +90,6 @@ def test_get_public_menu_display_populated(client):
     restaurant_obj = Restaurant(
         id=restaurant_id,
         name="Gourmet Heaven",
-        slug=slug,
         address="Central Ave",
         phone="+229 00000000",
         ownerId=uuid4()
@@ -177,13 +172,12 @@ def test_get_public_menu_display_populated(client):
     ]
     db_mock.query.side_effect = lambda model: queries.pop(0)
 
-    response = client.get(f"/menus/display/{slug}")
+    response = client.get(f"/menus/display/{restaurant_id}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["restaurant"]["name"] == "Gourmet Heaven"
-    assert data["restaurant"]["slug"] == "gourmet-heaven"
     assert len(data["familles"]) == 1
     assert data["familles"][0]["nom"] == "Plats principaux"
     assert data["familles"][0]["images"][0]["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/img1.png"

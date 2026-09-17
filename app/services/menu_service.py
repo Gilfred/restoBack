@@ -22,25 +22,14 @@ from app.services import cloudinary_service
 
 
 # --- Full Menu Display Service ---
-def get_full_restaurant_menu(db: Session, identifier: str):
-    # 1. Try finding Restaurant by slug first
-    restaurant = db.query(Restaurant).filter(Restaurant.slug == identifier).first()
-
-    # If not found by slug, check if identifier is a valid UUID to query by id for backwards compatibility
-    if not restaurant:
-        try:
-            uuid_id = UUID(identifier)
-            restaurant = db.query(Restaurant).filter(Restaurant.id == uuid_id).first()
-        except (ValueError, AttributeError):
-            pass
-
+def get_full_restaurant_menu(db: Session, restaurant_id: UUID):
+    # 1. Fetch Restaurant to ensure existence
+    restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
     if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Restaurant non trouvé"
         )
-
-    restaurant_id = restaurant.id
 
     # 2. Fetch MenuFamilles with eager loading of images, categories, repas, and the Repas model
     familles = (

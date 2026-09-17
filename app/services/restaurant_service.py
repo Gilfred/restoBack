@@ -1,6 +1,4 @@
 from datetime import datetime
-import re
-import unicodedata
 from sqlalchemy.orm import Session, joinedload
 from app.models.restaurant import Restaurant
 from app.models.user import User
@@ -10,34 +8,9 @@ from app.schemas.restaurant import RestaurantCreate
 from app.enums import ActivationStatus, UserRestaurantStatus
 from uuid import UUID
 
-def generate_unique_slug(db: Session, name: str, provided_slug: str = None) -> str:
-    if provided_slug:
-        base_slug = provided_slug.lower().strip()
-    else:
-        # Normalize accent characters and convert to lower
-        text = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('utf-8')
-        text = text.lower().strip()
-        text = re.sub(r'[\s\-_]+', '-', text)
-        base_slug = re.sub(r'[^a-z0-9\-]', '', text).strip('-')
-
-    if not base_slug:
-        base_slug = "restaurant"
-
-    slug = base_slug
-    counter = 1
-    while db.query(Restaurant).filter(Restaurant.slug == slug).first():
-        slug = f"{base_slug}-{counter}"
-        counter += 1
-    return slug
-
 def create_restaurant(db: Session, restaurant_data: RestaurantCreate, owner_id: UUID):
-    data_dict = restaurant_data.model_dump()
-    provided_slug = data_dict.pop("slug", None)
-    slug = generate_unique_slug(db, restaurant_data.name, provided_slug)
-
     db_restaurant = Restaurant(
-        **data_dict,
-        slug=slug,
+        **restaurant_data.model_dump(),
         ownerId=owner_id,
         isActive=False
     )
