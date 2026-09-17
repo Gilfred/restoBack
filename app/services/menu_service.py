@@ -22,19 +22,27 @@ from app.services import cloudinary_service
 
 
 # --- Full Menu Display Service ---
-def get_full_restaurant_menu(db: Session, restaurant_id: UUID):
+def get_full_restaurant_menu(db: Session, restaurant_id: Optional[UUID] = None):
     # 1. Fetch Restaurant to ensure existence
-    restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+    if restaurant_id:
+        restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+    else:
+        restaurant = db.query(Restaurant).filter(Restaurant.isActive == True).first()
+        if not restaurant:
+            restaurant = db.query(Restaurant).first()
+
     if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Restaurant non trouvé"
         )
 
+    target_restaurant_id = restaurant.id
+
     # 2. Fetch MenuFamilles with eager loading of images, categories, repas, and the Repas model
     familles = (
         db.query(MenuFamille)
-        .filter(MenuFamille.restaurantId == restaurant_id)
+        .filter(MenuFamille.restaurantId == target_restaurant_id)
         .options(
             joinedload(MenuFamille.images),
             joinedload(MenuFamille.categories)
@@ -56,7 +64,7 @@ def get_full_restaurant_menu(db: Session, restaurant_id: UUID):
     boissons = (
         db.query(MenuBoisson)
         .join(Boisson, MenuBoisson.boissonId == Boisson.id)
-        .filter(Boisson.restaurantId == restaurant_id)
+        .filter(Boisson.restaurantId == target_restaurant_id)
         .options(joinedload(MenuBoisson.boisson))
         .order_by(MenuBoisson.ordre.asc())
         .all()
@@ -169,7 +177,14 @@ def upload_and_create_famille_image(
         )
 
 
-def update_menu_famille_image(db: Session, image_id: UUID, image_data: MenuFamilleImageUpdate, restaurant_id: UUID) -> Optional[MenuFamilleImage]:
+def update_menu_famille_image_file(
+    db: Session,
+    image_id: UUID,
+    file_bytes: bytes,
+    filename: str,
+    ordre: Optional[int],
+    restaurant_id: UUID
+) -> Optional[MenuFamilleImage]:
     image = (
         db.query(MenuFamilleImage)
         .join(MenuFamille, MenuFamilleImage.familleId == MenuFamille.id)
@@ -178,13 +193,36 @@ def update_menu_famille_image(db: Session, image_id: UUID, image_data: MenuFamil
     )
     if not image:
         return None
-    if image_data.imageUrl is not None:
-        image.imageUrl = image_data.imageUrl
-    if image_data.ordre is not None:
-        image.ordre = image_data.ordre
-    db.commit()
-    db.refresh(image)
-    return image
+
+    old_image_url = image.imageUrl
+
+    res = cloudinary_service.upload_image(file_bytes=file_bytes, filename=filename)
+    new_url = res.get("url")
+    new_public_id = res.get("public_id")
+
+    image.imageUrl = new_url
+    if ordre is not None:
+        image.ordre = ordre
+
+    try:
+        db.commit()
+        db.refresh(image)
+
+        old_public_id = cloudinary_service.extract_public_id_from_url(old_image_url)
+        if old_public_id:
+            cloudinary_service.delete_image(old_public_id)
+
+        return image
+    except Exception as e:
+        db.rollback()
+        if new_public_id:
+            cloudinary_service.delete_image(new_public_id)
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Échec de la mise à jour de l'image en base de données: {str(e)}"
+        )
 
 def delete_menu_famille_image(db: Session, image_id: UUID, restaurant_id: UUID) -> bool:
     image = (

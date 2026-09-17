@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.database import get_session
@@ -22,8 +22,11 @@ router = APIRouter()
 # PUBLIC ENDPOINTS (No Authentication Required)
 # ==========================================
 
-@router.get("/display/{restaurant_id}", response_model=MenuDisplayResponse)
-def get_public_menu_display(restaurant_id: UUID, db: Session = Depends(get_session)):
+@router.get("/display", response_model=MenuDisplayResponse)
+def get_public_menu_display(
+    restaurant_id: Optional[UUID] = Query(None, description="ID du restaurant (optionnel)"),
+    db: Session = Depends(get_session)
+):
     """
     Endpoint public permettant de récupérer l'affichage complet du menu d'un restaurant
     (Restaurant, Familles, Images, Catégories, Repas, Boissons).
@@ -129,12 +132,29 @@ def delete_famille(
 @router.patch("/famille-images/{image_id}", response_model=MenuFamilleImageResponse)
 def update_famille_image(
     image_id: UUID,
-    image_data: MenuFamilleImageUpdate,
+    file: UploadFile = File(...),
+    ordre: Optional[int] = Form(None),
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
     admin_user = Depends(require_admin)
 ):
-    image = menu_service.update_menu_famille_image(db, image_id, image_data, restaurant_id)
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seuls les fichiers de type image (JPEG, PNG, WEBP, etc.) sont autorisés"
+        )
+
+    contents = file.file.read()
+    filename = file.filename or "image.png"
+
+    image = menu_service.update_menu_famille_image_file(
+        db=db,
+        image_id=image_id,
+        file_bytes=contents,
+        filename=filename,
+        ordre=ordre,
+        restaurant_id=restaurant_id
+    )
     if not image:
         raise HTTPException(status_code=404, detail="Image non trouvée")
     return image
