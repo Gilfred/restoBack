@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.database import get_session
 from app.dependencies import get_user_restaurant_id, require_admin
+from app.enums import MenuCategorieNom
 from app.schemas.menu import (
     MenuDisplayResponse,
     MenuFamilleCreate, MenuFamilleUpdate, MenuFamilleResponse,
-    MenuFamilleImageUpdate, MenuFamilleImageResponse,
-    MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
+    MenuFamilleImageResponse,
+    MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
     MenuFamilleImageUploadResponse
@@ -18,22 +19,19 @@ from app.services import menu_service, cloudinary_service
 
 router = APIRouter()
 
-# ==========================================
 # PUBLIC ENDPOINTS (No Authentication Required)
-# ==========================================
 
-@router.get("/display/{restaurant_id}", response_model=MenuDisplayResponse)
-def get_public_menu_display(restaurant_id: UUID, db: Session = Depends(get_session)):
+@router.get("/display", response_model=MenuDisplayResponse)
+def get_public_menu_display(
+    db: Session = Depends(get_session)
+):
     """
     Endpoint public permettant de récupérer l'affichage complet du menu d'un restaurant
     (Restaurant, Familles, Images, Catégories, Repas, Boissons).
     """
-    return menu_service.get_full_restaurant_menu(db, restaurant_id)
+    return menu_service.get_full_restaurant_menu(db)
 
-
-# ==========================================
 # IMAGE UPLOAD ENDPOINT (Cloudinary)
-# ==========================================
 
 @router.post("/upload", response_model=MenuFamilleImageUploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_menu_image(
@@ -129,12 +127,29 @@ def delete_famille(
 @router.patch("/famille-images/{image_id}", response_model=MenuFamilleImageResponse)
 def update_famille_image(
     image_id: UUID,
-    image_data: MenuFamilleImageUpdate,
+    file: UploadFile = File(...),
+    ordre: Optional[int] = Form(None),
     db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
     admin_user = Depends(require_admin)
 ):
-    image = menu_service.update_menu_famille_image(db, image_id, image_data, restaurant_id)
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seuls les fichiers de type image (JPEG, PNG, WEBP, etc.) sont autorisés"
+        )
+
+    contents = file.file.read()
+    filename = file.filename or "image.png"
+
+    image = menu_service.update_menu_famille_image_file(
+        db=db,
+        image_id=image_id,
+        file_bytes=contents,
+        filename=filename,
+        ordre=ordre,
+        restaurant_id=restaurant_id
+    )
     if not image:
         raise HTTPException(status_code=404, detail="Image non trouvée")
     return image
@@ -151,40 +166,14 @@ def delete_famille_image(
     return None
 
 
-# --- Menu Categoriés ---
+# --- Menu Catégories ---
 
-@router.post("/categories", response_model=MenuCategorieResponse, status_code=status.HTTP_201_CREATED)
-def create_categorie(
-    cat_data: MenuCategorieCreate,
-    db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    return menu_service.create_menu_categorie(db, cat_data, restaurant_id)
-
-@router.patch("/categories/{categorie_id}", response_model=MenuCategorieResponse)
-def update_categorie(
-    categorie_id: UUID,
-    cat_data: MenuCategorieUpdate,
-    db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    cat = menu_service.update_menu_categorie(db, categorie_id, cat_data, restaurant_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
-    return cat
-
-@router.delete("/categories/{categorie_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_categorie(
-    categorie_id: UUID,
-    db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    if not menu_service.delete_menu_categorie(db, categorie_id, restaurant_id):
-        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
-    return None
+@router.get("/categories")
+def list_available_categories():
+    """
+    Retourne directement la liste des catégories de menu disponibles (enum MenuCategorieNom).
+    """
+    return [{"nom": cat.value} for cat in MenuCategorieNom]
 
 
 # --- Menu Repas (Association Repas <-> Categorie) ---

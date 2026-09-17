@@ -42,6 +42,8 @@ def upload_image(file_bytes: bytes, filename: str) -> dict:
             detail=f"Erreur d'intégration Cloudinary: {str(e)}"
         )
 
+from typing import Optional
+
 def delete_image(public_id: str):
     """
     Supprime une image sur Cloudinary à l'aide de son public_id.
@@ -53,3 +55,23 @@ def delete_image(public_id: str):
         cloudinary.uploader.destroy(public_id)
     except Exception:
         pass
+
+def extract_public_id_from_url(url: str) -> Optional[str]:
+    """
+    Extrait le public_id d'une URL d'image Cloudinary si possible.
+    """
+    if not url or "cloudinary.com" not in url:
+        return None
+    try:
+        parts = url.split("/upload/")
+        if len(parts) < 2:
+            return None
+        path = parts[1]
+        path_parts = path.split("/")
+        if path_parts[0].startswith("v") and path_parts[0][1:].isdigit():
+            path_parts = path_parts[1:]
+        public_id_with_ext = "/".join(path_parts)
+        public_id = public_id_with_ext.rsplit(".", 1)[0]
+        return public_id
+    except Exception:
+        return None

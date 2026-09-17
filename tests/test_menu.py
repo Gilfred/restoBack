@@ -69,7 +69,7 @@ def test_get_public_menu_display_empty(client):
     ]
     db_mock.query.side_effect = lambda model: queries.pop(0)
 
-    response = client.get(f"/menus/display/{restaurant_id}")
+    response = client.get("/menus/display")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
@@ -172,7 +172,7 @@ def test_get_public_menu_display_populated(client):
     ]
     db_mock.query.side_effect = lambda model: queries.pop(0)
 
-    response = client.get(f"/menus/display/{restaurant_id}")
+    response = client.get(f"/menus/display?restaurant_id={restaurant_id}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
@@ -290,7 +290,7 @@ def test_menu_famille_image_update_and_delete(client):
     famille_img = MenuFamilleImage(
         id=image_id,
         familleId=famille_id,
-        imageUrl="https://res.cloudinary.com/demo/image/upload/famille_hot.jpg",
+        imageUrl="https://res.cloudinary.com/demo/image/upload/v12345/gilexis/menu/old_image.jpg",
         ordre=1
     )
 
@@ -301,10 +301,23 @@ def test_menu_famille_image_update_and_delete(client):
 
     db_mock.query.side_effect = lambda model: MockQuery(famille_img)
 
-    payload = {"ordre": 2}
-    response = client.patch(f"/menus/famille-images/{image_id}", json=payload)
-    assert response.status_code == 200, response.text
-    assert response.json()["ordre"] == 2
+    with patch("app.services.cloudinary_service.upload_image") as mock_upload, \
+         patch("app.services.cloudinary_service.delete_image") as mock_delete:
+        mock_upload.return_value = {
+            "url": "https://res.cloudinary.com/demo/image/upload/v67890/gilexis/menu/new_image.jpg",
+            "public_id": "gilexis/menu/new_image"
+        }
+
+        files = {"file": ("new_image.webp", b"new image bytes", "image/webp")}
+        data = {"ordre": "2"}
+        response = client.patch(f"/menus/famille-images/{image_id}", files=files, data=data)
+
+        assert response.status_code == 200, response.text
+        res_json = response.json()
+        assert res_json["ordre"] == 2
+        assert res_json["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/v67890/gilexis/menu/new_image.jpg"
+        mock_upload.assert_called_once()
+        mock_delete.assert_called_once_with("gilexis/menu/old_image")
 
     response_del = client.delete(f"/menus/famille-images/{image_id}")
     app.dependency_overrides.clear()
@@ -400,3 +413,12 @@ def test_modification_requires_admin(client):
     payload = {"nom": "Unauthorized Famille"}
     response = client.post("/menus/familles", json=payload)
     assert response.status_code in (401, 403)
+
+def test_get_available_menu_categories(client):
+    response = client.get("/menus/categories")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 3
+    assert data == [
+        {"nom": cat.value} for cat in MenuCategorieNom
+    ]
