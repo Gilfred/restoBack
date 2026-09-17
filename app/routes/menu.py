@@ -5,11 +5,12 @@ from uuid import UUID
 
 from app.database import get_session
 from app.dependencies import get_user_restaurant_id, require_admin
+from app.enums import MenuCategorieNom
 from app.schemas.menu import (
     MenuDisplayResponse,
     MenuFamilleCreate, MenuFamilleUpdate, MenuFamilleResponse,
-    MenuFamilleImageUpdate, MenuFamilleImageResponse,
-    MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
+    MenuFamilleImageResponse,
+    MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
     MenuFamilleImageUploadResponse
@@ -171,40 +172,14 @@ def delete_famille_image(
     return None
 
 
-# --- Menu Categoriés ---
+# --- Menu Catégories ---
 
-@router.post("/categories", response_model=MenuCategorieResponse, status_code=status.HTTP_201_CREATED)
-def create_categorie(
-    cat_data: MenuCategorieCreate,
-    db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    return menu_service.create_menu_categorie(db, cat_data, restaurant_id)
-
-@router.patch("/categories/{categorie_id}", response_model=MenuCategorieResponse)
-def update_categorie(
-    categorie_id: UUID,
-    cat_data: MenuCategorieUpdate,
-    db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    cat = menu_service.update_menu_categorie(db, categorie_id, cat_data, restaurant_id)
-    if not cat:
-        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
-    return cat
-
-@router.delete("/categories/{categorie_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_categorie(
-    categorie_id: UUID,
-    db: Session = Depends(get_session),
-    restaurant_id: UUID = Depends(get_user_restaurant_id),
-    admin_user = Depends(require_admin)
-):
-    if not menu_service.delete_menu_categorie(db, categorie_id, restaurant_id):
-        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
-    return None
+@router.get("/categories")
+def list_available_categories():
+    """
+    Retourne directement la liste des catégories de menu disponibles (enum MenuCategorieNom).
+    """
+    return [{"nom": cat.value} for cat in MenuCategorieNom]
 
 
 # --- Menu Repas (Association Repas <-> Categorie) ---

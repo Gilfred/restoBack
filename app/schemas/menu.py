@@ -49,14 +49,6 @@ class MenuCategorieBase(BaseModel):
     nom: MenuCategorieNom
     ordre: Optional[int] = 0
 
-class MenuCategorieCreate(MenuCategorieBase):
-    menuFamilleId: UUID
-
-class MenuCategorieUpdate(BaseModel):
-    nom: Optional[MenuCategorieNom] = None
-    ordre: Optional[int] = None
-    menuFamilleId: Optional[UUID] = None
-
 class MenuCategorieResponse(MenuCategorieBase):
     id: UUID
     menuFamilleId: Optional[UUID] = None

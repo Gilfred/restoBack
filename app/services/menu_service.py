@@ -14,7 +14,6 @@ from app.models.boisson import Boisson
 from app.schemas.menu import (
     MenuFamilleCreate, MenuFamilleUpdate,
     MenuFamilleImageUpdate,
-    MenuCategorieCreate, MenuCategorieUpdate,
     MenuRepasCreate, MenuRepasUpdate,
     MenuBoissonCreate, MenuBoissonUpdate
 )
@@ -239,21 +238,6 @@ def delete_menu_famille_image(db: Session, image_id: UUID, restaurant_id: UUID) 
 
 
 # --- MenuCategorie Services ---
-def create_menu_categorie(db: Session, cat_data: MenuCategorieCreate, restaurant_id: UUID) -> MenuCategorie:
-    famille = get_menu_famille(db, cat_data.menuFamilleId, restaurant_id)
-    if not famille:
-        raise HTTPException(status_code=404, detail="Famille de menu non trouvée pour ce restaurant")
-    
-    categorie = MenuCategorie(
-        menuFamilleId=cat_data.menuFamilleId,
-        nom=cat_data.nom,
-        ordre=cat_data.ordre or 0
-    )
-    db.add(categorie)
-    db.commit()
-    db.refresh(categorie)
-    return categorie
-
 def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> Optional[MenuCategorie]:
     return (
         db.query(MenuCategorie)
@@ -261,31 +245,6 @@ def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> 
         .filter(MenuCategorie.id == categorie_id, MenuFamille.restaurantId == restaurant_id)
         .first()
     )
-
-def update_menu_categorie(db: Session, categorie_id: UUID, cat_data: MenuCategorieUpdate, restaurant_id: UUID) -> Optional[MenuCategorie]:
-    categorie = get_menu_categorie(db, categorie_id, restaurant_id)
-    if not categorie:
-        return None
-    if cat_data.menuFamilleId is not None:
-        famille = get_menu_famille(db, cat_data.menuFamilleId, restaurant_id)
-        if not famille:
-            raise HTTPException(status_code=404, detail="Famille de menu non trouvée pour ce restaurant")
-        categorie.menuFamilleId = cat_data.menuFamilleId
-    if cat_data.nom is not None:
-        categorie.nom = cat_data.nom
-    if cat_data.ordre is not None:
-        categorie.ordre = cat_data.ordre
-    db.commit()
-    db.refresh(categorie)
-    return categorie
-
-def delete_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> bool:
-    categorie = get_menu_categorie(db, categorie_id, restaurant_id)
-    if not categorie:
-        return False
-    db.delete(categorie)
-    db.commit()
-    return True
 
 
 # --- MenuRepas Services ---

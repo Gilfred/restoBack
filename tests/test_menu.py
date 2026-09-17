@@ -413,3 +413,12 @@ def test_modification_requires_admin(client):
     payload = {"nom": "Unauthorized Famille"}
     response = client.post("/menus/familles", json=payload)
     assert response.status_code in (401, 403)
+
+def test_get_available_menu_categories(client):
+    response = client.get("/menus/categories")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 3
+    assert data == [
+        {"nom": cat.value} for cat in MenuCategorieNom
+    ]
