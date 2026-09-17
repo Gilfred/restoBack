@@ -21,58 +21,49 @@ from app.services import cloudinary_service
 
 
 # --- Full Menu Display Service ---
-def get_full_restaurant_menu(db: Session, restaurant_id: Optional[UUID] = None):
-    # 1. Fetch Restaurant to ensure existence
-    if restaurant_id:
-        restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
-    else:
-        restaurant = db.query(Restaurant).filter(Restaurant.isActive == True).first()
-        if not restaurant:
-            restaurant = db.query(Restaurant).first()
+def get_full_restaurant_menu(db: Session):
+    restaurants = db.query(Restaurant).filter(Restaurant.isActive == True).all()
 
-    if not restaurant:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Restaurant non trouvé"
+    restaurant_menus = []
+    for restaurant in restaurants:
+        target_restaurant_id = restaurant.id
+
+        familles = (
+            db.query(MenuFamille)
+            .filter(MenuFamille.restaurantId == target_restaurant_id)
+            .options(
+                joinedload(MenuFamille.images),
+                joinedload(MenuFamille.categories)
+                .joinedload(MenuCategorie.repasList)
+                .joinedload(MenuRepas.repas)
+            )
+            .order_by(MenuFamille.ordre.asc())
+            .all()
         )
 
-    target_restaurant_id = restaurant.id
+        for famille in familles:
+            famille.images.sort(key=lambda x: x.ordre or 0)
+            famille.categories.sort(key=lambda x: x.ordre or 0)
+            for cat in famille.categories:
+                cat.repasList.sort(key=lambda x: x.ordre or 0)
 
-    # 2. Fetch MenuFamilles with eager loading of images, categories, repas, and the Repas model
-    familles = (
-        db.query(MenuFamille)
-        .filter(MenuFamille.restaurantId == target_restaurant_id)
-        .options(
-            joinedload(MenuFamille.images),
-            joinedload(MenuFamille.categories)
-            .joinedload(MenuCategorie.repasList)
-            .joinedload(MenuRepas.repas)
+        boissons = (
+            db.query(MenuBoisson)
+            .join(Boisson, MenuBoisson.boissonId == Boisson.id)
+            .filter(Boisson.restaurantId == target_restaurant_id)
+            .options(joinedload(MenuBoisson.boisson))
+            .order_by(MenuBoisson.ordre.asc())
+            .all()
         )
-        .order_by(MenuFamille.ordre.asc())
-        .all()
-    )
 
-    # Sort categories and repasList in python memory if needed
-    for famille in familles:
-        famille.images.sort(key=lambda x: x.ordre or 0)
-        famille.categories.sort(key=lambda x: x.ordre or 0)
-        for cat in famille.categories:
-            cat.repasList.sort(key=lambda x: x.ordre or 0)
-
-    # 3. Fetch MenuBoissons associated with beverages belonging to this restaurant
-    boissons = (
-        db.query(MenuBoisson)
-        .join(Boisson, MenuBoisson.boissonId == Boisson.id)
-        .filter(Boisson.restaurantId == target_restaurant_id)
-        .options(joinedload(MenuBoisson.boisson))
-        .order_by(MenuBoisson.ordre.asc())
-        .all()
-    )
+        restaurant_menus.append({
+            "restaurant": restaurant,
+            "familles": familles,
+            "boissons": boissons
+        })
 
     return {
-        "restaurant": restaurant,
-        "familles": familles,
-        "boissons": boissons
+        "restaurants": restaurant_menus
     }
 
 
