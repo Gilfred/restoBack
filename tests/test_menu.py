@@ -51,9 +51,11 @@ class MockQuery:
 def test_get_public_menu_display_empty(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
+    slug = "test-resto"
     restaurant_obj = Restaurant(
         id=restaurant_id,
         name="Test Resto",
+        slug=slug,
         address="Rue 1",
         phone="123456",
         ownerId=uuid4()
@@ -69,12 +71,13 @@ def test_get_public_menu_display_empty(client):
     ]
     db_mock.query.side_effect = lambda model: queries.pop(0)
 
-    response = client.get(f"/menus/display/{restaurant_id}")
+    response = client.get(f"/menus/display/{slug}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["restaurant"]["id"] == str(restaurant_id)
+    assert data["restaurant"]["slug"] == slug
     assert data["restaurant"]["name"] == "Test Resto"
     assert data["familles"] == []
     assert data["boissons"] == []
@@ -82,6 +85,7 @@ def test_get_public_menu_display_empty(client):
 def test_get_public_menu_display_populated(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
+    slug = "gourmet-heaven"
     famille_id = uuid4()
     cat_id = uuid4()
     repas_id = uuid4()
@@ -90,6 +94,7 @@ def test_get_public_menu_display_populated(client):
     restaurant_obj = Restaurant(
         id=restaurant_id,
         name="Gourmet Heaven",
+        slug=slug,
         address="Central Ave",
         phone="+229 00000000",
         ownerId=uuid4()
@@ -172,12 +177,13 @@ def test_get_public_menu_display_populated(client):
     ]
     db_mock.query.side_effect = lambda model: queries.pop(0)
 
-    response = client.get(f"/menus/display/{restaurant_id}")
+    response = client.get(f"/menus/display/{slug}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["restaurant"]["name"] == "Gourmet Heaven"
+    assert data["restaurant"]["slug"] == "gourmet-heaven"
     assert len(data["familles"]) == 1
     assert data["familles"][0]["nom"] == "Plats principaux"
     assert data["familles"][0]["images"][0]["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/img1.png"
@@ -280,19 +286,18 @@ def test_crud_menu_famille(client):
 
     app.dependency_overrides.clear()
 
-def test_menu_famille_image_upload_center_reference(client):
+def test_menu_famille_image_update_and_delete(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
     famille_id = uuid4()
+    image_id = uuid4()
     admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
 
-    famille_obj = MenuFamille(
-        id=famille_id,
-        restaurantId=restaurant_id,
-        nom="Boissons Chaudes",
-        ordre=1,
-        createdAt=datetime.now(),
-        updatedAt=datetime.now()
+    famille_img = MenuFamilleImage(
+        id=image_id,
+        familleId=famille_id,
+        imageUrl="https://res.cloudinary.com/demo/image/upload/famille_hot.jpg",
+        ordre=1
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
@@ -300,26 +305,16 @@ def test_menu_famille_image_upload_center_reference(client):
     app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
-    def mock_add(obj):
-        obj.id = uuid4()
-        obj.createdAt = datetime.now()
-        obj.updatedAt = datetime.now()
+    db_mock.query.side_effect = lambda model: MockQuery(famille_img)
 
-    db_mock.add.side_effect = mock_add
-    db_mock.query.side_effect = lambda model: MockQuery(famille_obj)
+    payload = {"ordre": 2}
+    response = client.patch(f"/menus/famille-images/{image_id}", json=payload)
+    assert response.status_code == 200, response.text
+    assert response.json()["ordre"] == 2
 
-    payload = {
-        "familleId": str(famille_id),
-        "imageUrl": "https://res.cloudinary.com/demo/image/upload/famille_hot.jpg",
-        "ordre": 1
-    }
-    response = client.post("/menus/famille-images", json=payload)
+    response_del = client.delete(f"/menus/famille-images/{image_id}")
     app.dependency_overrides.clear()
-
-    assert response.status_code == 201, response.text
-    data = response.json()
-    assert data["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/famille_hot.jpg"
-    assert data["familleId"] == str(famille_id)
+    assert response_del.status_code == 204
 
 def test_multi_tenant_isolation_repas_association(client):
     db_mock = MagicMock()

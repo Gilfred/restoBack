@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 class Restaurant(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
+    slug = Column(String(255), unique=True, index=True, nullable=True)
     address = Column(String(255), nullable=False)
     phone = Column(String(255), nullable=False)
     ownerId = Column(UUID(as_uuid=True), ForeignKey("user.id", use_alter=True, name="fk_restaurant_owner"), nullable=False)

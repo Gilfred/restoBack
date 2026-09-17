@@ -9,11 +9,12 @@ class RestaurantBase(BaseModel):
     phone: str
 
 class RestaurantCreate(RestaurantBase):
-    pass
+    slug: Optional[str] = None
 
 class RestaurantResponse(RestaurantBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+    slug: Optional[str] = None
     ownerId: UUID
     isActive: bool
     createdAt: datetime

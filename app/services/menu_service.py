@@ -13,7 +13,7 @@ from app.models.repas import Repas
 from app.models.boisson import Boisson
 from app.schemas.menu import (
     MenuFamilleCreate, MenuFamilleUpdate,
-    MenuFamilleImageCreate, MenuFamilleImageUpdate,
+    MenuFamilleImageUpdate,
     MenuCategorieCreate, MenuCategorieUpdate,
     MenuRepasCreate, MenuRepasUpdate,
     MenuBoissonCreate, MenuBoissonUpdate
@@ -22,14 +22,25 @@ from app.services import cloudinary_service
 
 
 # --- Full Menu Display Service ---
-def get_full_restaurant_menu(db: Session, restaurant_id: UUID):
-    # 1. Fetch Restaurant to ensure existence
-    restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+def get_full_restaurant_menu(db: Session, identifier: str):
+    # 1. Try finding Restaurant by slug first
+    restaurant = db.query(Restaurant).filter(Restaurant.slug == identifier).first()
+
+    # If not found by slug, check if identifier is a valid UUID to query by id for backwards compatibility
+    if not restaurant:
+        try:
+            uuid_id = UUID(identifier)
+            restaurant = db.query(Restaurant).filter(Restaurant.id == uuid_id).first()
+        except (ValueError, AttributeError):
+            pass
+
     if not restaurant:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Restaurant non trouvé"
         )
+
+    restaurant_id = restaurant.id
 
     # 2. Fetch MenuFamilles with eager loading of images, categories, repas, and the Repas model
     familles = (
@@ -168,22 +179,6 @@ def upload_and_create_famille_image(
             detail=f"Échec de l'enregistrement de l'image en base de données: {str(e)}"
         )
 
-
-def create_menu_famille_image(db: Session, image_data: MenuFamilleImageCreate, restaurant_id: UUID) -> MenuFamilleImage:
-    # Verify famille belongs to restaurant
-    famille = get_menu_famille(db, image_data.familleId, restaurant_id)
-    if not famille:
-        raise HTTPException(status_code=404, detail="Famille de menu non trouvée pour ce restaurant")
-    
-    image = MenuFamilleImage(
-        familleId=image_data.familleId,
-        imageUrl=image_data.imageUrl,
-        ordre=image_data.ordre or 0
-    )
-    db.add(image)
-    db.commit()
-    db.refresh(image)
-    return image
 
 def update_menu_famille_image(db: Session, image_id: UUID, image_data: MenuFamilleImageUpdate, restaurant_id: UUID) -> Optional[MenuFamilleImage]:
     image = (
