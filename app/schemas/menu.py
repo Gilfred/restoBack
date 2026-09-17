@@ -144,12 +144,15 @@ class RestaurantSimpleResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class MenuDisplayResponse(BaseModel):
+class RestaurantMenuDisplayResponse(BaseModel):
     restaurant: RestaurantSimpleResponse
     familles: List[MenuFamilleDisplayResponse] = []
     boissons: List[MenuBoissonDisplayResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+class MenuDisplayResponse(BaseModel):
+    restaurants: List[RestaurantMenuDisplayResponse] = []
 
 
 # --- Image Upload Response Schema ---

@@ -61,9 +61,9 @@ def test_get_public_menu_display_empty(client):
 
     app.dependency_overrides[get_session] = lambda: db_mock
 
-    # 1st query: Restaurant, 2nd query: MenuFamilles, 3rd query: MenuBoissons
+    # 1st query: Restaurant list, 2nd query: MenuFamilles, 3rd query: MenuBoissons
     queries = [
-        MockQuery(restaurant_obj),
+        MockQuery([restaurant_obj]),
         MockQuery([]),
         MockQuery([])
     ]
@@ -74,10 +74,13 @@ def test_get_public_menu_display_empty(client):
 
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data["restaurant"]["id"] == str(restaurant_id)
-    assert data["restaurant"]["name"] == "Test Resto"
-    assert data["familles"] == []
-    assert data["boissons"] == []
+    assert "restaurants" in data
+    assert len(data["restaurants"]) == 1
+    resto_menu = data["restaurants"][0]
+    assert resto_menu["restaurant"]["id"] == str(restaurant_id)
+    assert resto_menu["restaurant"]["name"] == "Test Resto"
+    assert resto_menu["familles"] == []
+    assert resto_menu["boissons"] == []
 
 def test_get_public_menu_display_populated(client):
     db_mock = MagicMock()
@@ -166,24 +169,27 @@ def test_get_public_menu_display_populated(client):
     app.dependency_overrides[get_session] = lambda: db_mock
 
     queries = [
-        MockQuery(restaurant_obj),
+        MockQuery([restaurant_obj]),
         MockQuery([famille_obj]),
         MockQuery([menu_boisson_obj])
     ]
     db_mock.query.side_effect = lambda model: queries.pop(0)
 
-    response = client.get(f"/menus/display?restaurant_id={restaurant_id}")
+    response = client.get("/menus/display")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data["restaurant"]["name"] == "Gourmet Heaven"
-    assert len(data["familles"]) == 1
-    assert data["familles"][0]["nom"] == "Plats principaux"
-    assert data["familles"][0]["images"][0]["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/img1.png"
-    assert data["familles"][0]["categories"][0]["nom"] == MenuCategorieNom.SPECIALITE
-    assert data["familles"][0]["categories"][0]["repasList"][0]["repas"]["nomRepas"] == "Burger Chef"
-    assert data["boissons"][0]["boisson"]["nomBoisson"] == "Jus de Pomme"
+    assert "restaurants" in data
+    assert len(data["restaurants"]) == 1
+    resto_menu = data["restaurants"][0]
+    assert resto_menu["restaurant"]["name"] == "Gourmet Heaven"
+    assert len(resto_menu["familles"]) == 1
+    assert resto_menu["familles"][0]["nom"] == "Plats principaux"
+    assert resto_menu["familles"][0]["images"][0]["imageUrl"] == "https://res.cloudinary.com/demo/image/upload/img1.png"
+    assert resto_menu["familles"][0]["categories"][0]["nom"] == MenuCategorieNom.SPECIALITE
+    assert resto_menu["familles"][0]["categories"][0]["repasList"][0]["repas"]["nomRepas"] == "Burger Chef"
+    assert resto_menu["boissons"][0]["boisson"]["nomBoisson"] == "Jus de Pomme"
 
 from unittest.mock import patch
 
