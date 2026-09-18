@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 from app.database import get_session
 from app.schemas.repas import RepasCreate, RepasUpdate, RepasResponse
 from app.services import repas_service
-from app.dependencies import get_user_restaurant_id, get_optional_user_restaurant_id, require_admin
+from app.dependencies import get_user_restaurant_id, require_admin
 
 router = APIRouter()
 
@@ -20,13 +20,10 @@ def create_repas(
 
 @router.get("/", response_model=List[RepasResponse])
 def list_repas(
-    restaurant_id: Optional[UUID] = Query(None),
-    restaurantId: Optional[UUID] = Query(None),
     db: Session = Depends(get_session),
-    user_restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
+    restaurant_id: UUID = Depends(get_user_restaurant_id)
 ):
-    target_restaurant_id = restaurant_id or restaurantId or user_restaurant_id
-    return repas_service.get_repas_list(db, target_restaurant_id)
+    return repas_service.get_repas_list(db, restaurant_id)
 
 @router.get("/{repas_id}", response_model=RepasResponse)
 def get_repas(
