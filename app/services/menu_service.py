@@ -14,6 +14,7 @@ from app.models.boisson import Boisson
 from app.schemas.menu import (
     MenuFamilleCreate, MenuFamilleUpdate,
     MenuFamilleImageUpdate,
+    MenuCategorieCreate, MenuCategorieUpdate,
     MenuRepasCreate, MenuRepasUpdate,
     MenuBoissonCreate, MenuBoissonUpdate
 )
@@ -229,13 +230,64 @@ def delete_menu_famille_image(db: Session, image_id: UUID, restaurant_id: UUID) 
 
 
 # --- MenuCategorie Services ---
-def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> Optional[MenuCategorie]:
-    return (
-        db.query(MenuCategorie)
-        .join(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id)
-        .filter(MenuCategorie.id == categorie_id, MenuFamille.restaurantId == restaurant_id)
-        .first()
+def create_menu_categorie(db: Session, cat_data: MenuCategorieCreate) -> MenuCategorie:
+    if cat_data.menuFamilleId:
+        famille = db.query(MenuFamille).filter(MenuFamille.id == cat_data.menuFamilleId).first()
+        if not famille:
+            raise HTTPException(status_code=404, detail="Famille de menu non trouvée")
+    categorie = MenuCategorie(
+        menuFamilleId=cat_data.menuFamilleId,
+        nom=cat_data.nom,
+        ordre=cat_data.ordre or 0
     )
+    db.add(categorie)
+    db.commit()
+    db.refresh(categorie)
+    return categorie
+
+def get_menu_categories(db: Session, restaurant_id: Optional[UUID] = None) -> List[MenuCategorie]:
+    query = db.query(MenuCategorie)
+    if restaurant_id:
+        query = query.outerjoin(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id).filter(
+            (MenuFamille.restaurantId == restaurant_id) | (MenuCategorie.menuFamilleId.is_(None))
+        )
+    return query.order_by(MenuCategorie.ordre.asc()).all()
+
+def get_menu_categorie_by_id(db: Session, categorie_id: UUID, restaurant_id: Optional[UUID] = None) -> Optional[MenuCategorie]:
+    query = db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id)
+    if restaurant_id:
+        query = query.outerjoin(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id).filter(
+            (MenuFamille.restaurantId == restaurant_id) | (MenuCategorie.menuFamilleId.is_(None))
+        )
+    return query.first()
+
+def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> Optional[MenuCategorie]:
+    return get_menu_categorie_by_id(db, categorie_id, restaurant_id)
+
+def update_menu_categorie(db: Session, categorie_id: UUID, cat_data: MenuCategorieUpdate) -> Optional[MenuCategorie]:
+    categorie = db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id).first()
+    if not categorie:
+        return None
+    if cat_data.menuFamilleId is not None:
+        famille = db.query(MenuFamille).filter(MenuFamille.id == cat_data.menuFamilleId).first()
+        if not famille:
+            raise HTTPException(status_code=404, detail="Famille de menu non trouvée")
+        categorie.menuFamilleId = cat_data.menuFamilleId
+    if cat_data.nom is not None:
+        categorie.nom = cat_data.nom
+    if cat_data.ordre is not None:
+        categorie.ordre = cat_data.ordre
+    db.commit()
+    db.refresh(categorie)
+    return categorie
+
+def delete_menu_categorie(db: Session, categorie_id: UUID) -> bool:
+    categorie = db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id).first()
+    if not categorie:
+        return False
+    db.delete(categorie)
+    db.commit()
+    return True
 
 
 # --- MenuRepas Services ---

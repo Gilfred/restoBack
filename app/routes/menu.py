@@ -4,13 +4,18 @@ from typing import List, Optional
 from uuid import UUID
 
 from app.database import get_session
-from app.dependencies import get_user_restaurant_id, require_admin
+from app.dependencies import (
+    get_user_restaurant_id,
+    get_optional_user_restaurant_id,
+    require_admin,
+    require_superadmin
+)
 from app.enums import MenuCategorieNom
 from app.schemas.menu import (
     MenuDisplayResponse,
     MenuFamilleCreate, MenuFamilleUpdate, MenuFamilleResponse,
     MenuFamilleImageResponse,
-    MenuCategorieResponse,
+    MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
     MenuFamilleImageUploadResponse
@@ -168,12 +173,68 @@ def delete_famille_image(
 
 # --- Menu Catégories ---
 
-@router.get("/categories")
-def list_available_categories():
+@router.post("/categories", response_model=MenuCategorieResponse, status_code=status.HTTP_201_CREATED)
+def create_categorie(
+    cat_data: MenuCategorieCreate,
+    db: Session = Depends(get_session),
+    superadmin_user = Depends(require_superadmin)
+):
     """
-    Retourne directement la liste des catégories de menu disponibles (enum MenuCategorieNom).
+    Création d'une catégorie (réservé au SUPERADMIN).
     """
-    return [{"nom": cat.value} for cat in MenuCategorieNom]
+    return menu_service.create_menu_categorie(db, cat_data)
+
+@router.get("/categories", response_model=List[MenuCategorieResponse])
+def list_categories(
+    db: Session = Depends(get_session),
+    restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
+):
+    """
+    Liste des catégories visible par tous les restaurants (catégories du restaurant + catégories créées par le superAdmin).
+    """
+    return menu_service.get_menu_categories(db, restaurant_id)
+
+@router.get("/categories/{categorie_id}", response_model=MenuCategorieResponse)
+def get_categorie(
+    categorie_id: UUID,
+    db: Session = Depends(get_session),
+    restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
+):
+    """
+    Détail d'une catégorie.
+    """
+    cat = menu_service.get_menu_categorie_by_id(db, categorie_id, restaurant_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
+    return cat
+
+@router.patch("/categories/{categorie_id}", response_model=MenuCategorieResponse)
+def update_categorie(
+    categorie_id: UUID,
+    cat_data: MenuCategorieUpdate,
+    db: Session = Depends(get_session),
+    superadmin_user = Depends(require_superadmin)
+):
+    """
+    Mise à jour d'une catégorie (réservé au SUPERADMIN).
+    """
+    cat = menu_service.update_menu_categorie(db, categorie_id, cat_data)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
+    return cat
+
+@router.delete("/categories/{categorie_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_categorie(
+    categorie_id: UUID,
+    db: Session = Depends(get_session),
+    superadmin_user = Depends(require_superadmin)
+):
+    """
+    Suppression d'une catégorie (réservé au SUPERADMIN).
+    """
+    if not menu_service.delete_menu_categorie(db, categorie_id):
+        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
+    return None
 
 
 # --- Menu Repas (Association Repas <-> Categorie) ---
