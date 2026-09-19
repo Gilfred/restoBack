@@ -186,24 +186,22 @@ def create_categorie(
 
 @router.get("/categories", response_model=List[MenuCategorieResponse])
 def list_categories(
-    db: Session = Depends(get_session),
-    restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
+    db: Session = Depends(get_session)
 ):
     """
-    Liste des catégories visible pour tous les restaurants.
+    Liste des catégories créées par le superAdmin, visible par tous les restaurants.
     """
-    return menu_service.get_menu_categories(db, restaurant_id)
+    return menu_service.get_menu_categories(db)
 
 @router.get("/categories/{categorie_id}", response_model=MenuCategorieResponse)
 def get_categorie(
     categorie_id: UUID,
-    db: Session = Depends(get_session),
-    restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
+    db: Session = Depends(get_session)
 ):
     """
     Détail d'une catégorie.
     """
-    cat = menu_service.get_menu_categorie_by_id(db, categorie_id, restaurant_id)
+    cat = menu_service.get_menu_categorie_by_id(db, categorie_id)
     if not cat:
         raise HTTPException(status_code=404, detail="Catégorie non trouvée")
     return cat

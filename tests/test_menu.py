@@ -468,9 +468,8 @@ def test_categories_endpoints_superadmin_and_public(client):
     data = res_201.json()
     assert data["nom"] == "classique"
 
-    # 3. GET categories is visible to users / public
+    # 3. GET categories is visible to users / public without restriction
     db_mock.query.side_effect = lambda model: MockQuery([cat_obj])
-    app.dependency_overrides[get_optional_user_restaurant_id] = lambda: None
 
     res_list = client.get("/menus/categories")
     assert res_list.status_code == 200
