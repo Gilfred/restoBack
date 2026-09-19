@@ -39,6 +39,9 @@ class MockQuery:
     def join(self, *args, **kwargs):
         return self
 
+    def outerjoin(self, *args, **kwargs):
+        return self
+
     def order_by(self, *args, **kwargs):
         return self
 
@@ -468,7 +471,7 @@ def test_categories_endpoints_superadmin_and_public(client):
     data = res_201.json()
     assert data["nom"] == "classique"
 
-    # 3. GET categories is visible to users / public without restriction
+    # 3. GET categories is visible to users / public
     db_mock.query.side_effect = lambda model: MockQuery([cat_obj])
 
     res_list = client.get("/menus/categories")

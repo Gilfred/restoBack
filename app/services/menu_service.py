@@ -245,21 +245,24 @@ def create_menu_categorie(db: Session, cat_data: MenuCategorieCreate) -> MenuCat
     db.refresh(categorie)
     return categorie
 
-def get_menu_categories(db: Session) -> List[MenuCategorie]:
-    return db.query(MenuCategorie).order_by(MenuCategorie.ordre.asc()).all()
+def get_menu_categories(db: Session, restaurant_id: Optional[UUID] = None) -> List[MenuCategorie]:
+    query = db.query(MenuCategorie)
+    if restaurant_id:
+        query = query.outerjoin(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id).filter(
+            (MenuFamille.restaurantId == restaurant_id) | (MenuCategorie.menuFamilleId.is_(None))
+        )
+    return query.order_by(MenuCategorie.ordre.asc()).all()
 
-def get_menu_categorie_by_id(db: Session, categorie_id: UUID) -> Optional[MenuCategorie]:
-    return db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id).first()
-
-def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> Optional[MenuCategorie]:
+def get_menu_categorie_by_id(db: Session, categorie_id: UUID, restaurant_id: Optional[UUID] = None) -> Optional[MenuCategorie]:
     query = db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id)
     if restaurant_id:
-        query = query.join(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id).filter(MenuFamille.restaurantId == restaurant_id)
-    cat = query.first()
-    if cat:
-        return cat
-    # Fallback for categories created by superadmin without family association
-    return db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id).first()
+        query = query.outerjoin(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id).filter(
+            (MenuFamille.restaurantId == restaurant_id) | (MenuCategorie.menuFamilleId.is_(None))
+        )
+    return query.first()
+
+def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> Optional[MenuCategorie]:
+    return get_menu_categorie_by_id(db, categorie_id, restaurant_id)
 
 def update_menu_categorie(db: Session, categorie_id: UUID, cat_data: MenuCategorieUpdate) -> Optional[MenuCategorie]:
     categorie = db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id).first()
