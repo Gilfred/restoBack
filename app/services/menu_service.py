@@ -3,6 +3,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
 
+from app.enums import MenuCategorieNom
 from app.models.restaurant import Restaurant
 from app.models.menu_famille import MenuFamille
 from app.models.menu_famille_image import MenuFamilleImage
@@ -68,6 +69,41 @@ def get_full_restaurant_menu(db: Session):
 
 
 # --- MenuFamille Services ---
+def ensure_categories_for_famille(db: Session, famille: MenuFamille) -> List[MenuCategorie]:
+    existing_cats = db.query(MenuCategorie).filter(MenuCategorie.menuFamilleId == famille.id).all()
+    existing_noms = {
+        cat.nom.value if isinstance(cat.nom, MenuCategorieNom) else str(cat.nom)
+        for cat in existing_cats
+    }
+
+    default_categories = [
+        (MenuCategorieNom.CLASSIQUE, 0),
+        (MenuCategorieNom.SPECIALITE, 1),
+        (MenuCategorieNom.PREMIUM, 2),
+    ]
+
+    created_any = False
+    for cat_nom, ordre in default_categories:
+        if cat_nom.value not in existing_noms:
+            new_cat = MenuCategorie(
+                menuFamilleId=famille.id,
+                nom=cat_nom,
+                ordre=ordre
+            )
+            db.add(new_cat)
+            created_any = True
+
+    if created_any:
+        db.commit()
+        db.refresh(famille)
+
+    return (
+        db.query(MenuCategorie)
+        .filter(MenuCategorie.menuFamilleId == famille.id)
+        .order_by(MenuCategorie.ordre.asc())
+        .all()
+    )
+
 def create_menu_famille(db: Session, famille_data: MenuFamilleCreate, restaurant_id: UUID) -> MenuFamille:
     famille = MenuFamille(
         restaurantId=restaurant_id,
@@ -77,6 +113,7 @@ def create_menu_famille(db: Session, famille_data: MenuFamilleCreate, restaurant
     db.add(famille)
     db.commit()
     db.refresh(famille)
+    ensure_categories_for_famille(db, famille)
     return famille
 
 def get_menu_familles(db: Session, restaurant_id: UUID) -> List[MenuFamille]:
@@ -229,6 +266,19 @@ def delete_menu_famille_image(db: Session, image_id: UUID, restaurant_id: UUID) 
 
 
 # --- MenuCategorie Services ---
+def get_menu_categories(db: Session, restaurant_id: UUID) -> List[MenuCategorie]:
+    familles = db.query(MenuFamille).filter(MenuFamille.restaurantId == restaurant_id).all()
+    for famille in familles:
+        ensure_categories_for_famille(db, famille)
+
+    return (
+        db.query(MenuCategorie)
+        .join(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id)
+        .filter(MenuFamille.restaurantId == restaurant_id)
+        .order_by(MenuCategorie.ordre.asc())
+        .all()
+    )
+
 def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> Optional[MenuCategorie]:
     return (
         db.query(MenuCategorie)

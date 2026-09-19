@@ -168,12 +168,15 @@ def delete_famille_image(
 
 # --- Menu Catégories ---
 
-@router.get("/categories")
-def list_available_categories():
+@router.get("/categories", response_model=List[MenuCategorieResponse])
+def list_available_categories(
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id)
+):
     """
-    Retourne directement la liste des catégories de menu disponibles (enum MenuCategorieNom).
+    Retourne la liste des vraies catégories de menu enregistrées en BDD pour le restaurant de l'utilisateur connecté.
     """
-    return [{"nom": cat.value} for cat in MenuCategorieNom]
+    return menu_service.get_menu_categories(db, restaurant_id)
 
 
 # --- Menu Repas (Association Repas <-> Categorie) ---

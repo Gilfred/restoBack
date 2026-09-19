@@ -421,10 +421,149 @@ def test_modification_requires_admin(client):
     assert response.status_code in (401, 403)
 
 def test_get_available_menu_categories(client):
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+    famille_id = uuid4()
+    user = User(id=uuid4(), name="User", email="user@test.com")
+
+    cat_classique = MenuCategorie(
+        id=uuid4(),
+        menuFamilleId=famille_id,
+        nom=MenuCategorieNom.CLASSIQUE,
+        ordre=0,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+    cat_specialite = MenuCategorie(
+        id=uuid4(),
+        menuFamilleId=famille_id,
+        nom=MenuCategorieNom.SPECIALITE,
+        ordre=1,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+    cat_premium = MenuCategorie(
+        id=uuid4(),
+        menuFamilleId=famille_id,
+        nom=MenuCategorieNom.PREMIUM,
+        ordre=2,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    # 1st query gets familles (empty or with famille), 2nd query gets categories
+    queries = [
+        MockQuery([]), # no familles to backfill
+        MockQuery([cat_classique, cat_specialite, cat_premium])
+    ]
+    db_mock.query.side_effect = lambda model: queries.pop(0)
+
     response = client.get("/menus/categories")
-    assert response.status_code == 200
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
     data = response.json()
     assert len(data) == 3
-    assert data == [
-        {"nom": cat.value} for cat in MenuCategorieNom
+    assert data[0]["nom"] == "classique"
+    assert data[0]["id"] == str(cat_classique.id)
+    assert data[1]["nom"] == "spécialité"
+    assert data[1]["id"] == str(cat_specialite.id)
+    assert data[2]["nom"] == "premium"
+    assert data[2]["id"] == str(cat_premium.id)
+
+
+def test_create_famille_auto_creates_categories(client):
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[require_admin] = lambda: admin_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    added_objects = []
+    def mock_add(obj):
+        obj.id = uuid4()
+        obj.createdAt = datetime.now()
+        obj.updatedAt = datetime.now()
+        added_objects.append(obj)
+
+    db_mock.add.side_effect = mock_add
+    # ensure_categories_for_famille queries existing categories
+    db_mock.query.side_effect = lambda model: MockQuery([])
+
+    payload = {"nom": "Entrées", "ordre": 1}
+    response = client.post("/menus/familles", json=payload)
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 201, response.text
+    # Check that 1 MenuFamille and 3 MenuCategorie objects were added
+    categories_added = [obj for obj in added_objects if isinstance(obj, MenuCategorie)]
+    assert len(categories_added) == 3
+    category_noms = [c.nom for c in categories_added]
+    assert MenuCategorieNom.CLASSIQUE in category_noms
+    assert MenuCategorieNom.SPECIALITE in category_noms
+    assert MenuCategorieNom.PREMIUM in category_noms
+
+
+def test_post_menu_repas_with_valid_categorie_uuid(client):
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+    cat_id = uuid4()
+    repas_id = uuid4()
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
+
+    cat_obj = MenuCategorie(
+        id=cat_id,
+        menuFamilleId=uuid4(),
+        nom=MenuCategorieNom.CLASSIQUE,
+        ordre=0,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    repas_obj = Repas(
+        id=repas_id,
+        restaurantId=restaurant_id,
+        nomRepas="Steak Frites",
+        prix=3500.0,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[require_admin] = lambda: admin_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    queries = [
+        MockQuery(cat_obj),   # Categorie check
+        MockQuery(repas_obj)  # Repas check
     ]
+    db_mock.query.side_effect = lambda model: queries.pop(0)
+
+    def mock_add(obj):
+        obj.id = uuid4()
+        obj.createdAt = datetime.now()
+        obj.updatedAt = datetime.now()
+
+    db_mock.add.side_effect = mock_add
+
+    payload = {
+        "menuCategorieId": str(cat_id),
+        "repasId": str(repas_id),
+        "ordre": 0
+    }
+
+    response = client.post("/menus/repas", json=payload)
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 201, response.text
+    res_json = response.json()
+    assert res_json["menuCategorieId"] == str(cat_id)
+    assert res_json["repasId"] == str(repas_id)
