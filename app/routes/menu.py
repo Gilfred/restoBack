@@ -173,6 +173,15 @@ def delete_famille_image(
 
 # --- Menu Catégories ---
 
+@router.get("/categories/noms", response_model=List[MenuCategorieNom])
+def list_categorie_noms(
+    admin_user = Depends(require_admin)
+):
+    """
+    Récupère la liste des valeurs de l'enum MenuCategorieNom (réservé aux admins).
+    """
+    return [e.value for e in MenuCategorieNom]
+
 @router.post("/categories", response_model=MenuCategorieResponse, status_code=status.HTTP_201_CREATED)
 def create_categorie(
     cat_data: MenuCategorieCreate,
