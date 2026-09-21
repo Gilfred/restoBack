@@ -499,3 +499,19 @@ def test_categories_endpoints_admin_and_public(client):
     assert res_del.status_code == 204
 
     app.dependency_overrides.clear()
+
+def test_list_categorie_noms_admin(client):
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
+    app.dependency_overrides[require_admin] = lambda: admin_user
+
+    response = client.get("/menus/categories/noms")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert isinstance(data, list)
+    assert set(data) == {"classique", "spécialité", "premium"}
+
+def test_list_categorie_noms_unauthorized(client):
+    response = client.get("/menus/categories/noms")
+    assert response.status_code in (401, 403)
