@@ -423,12 +423,21 @@ def test_modification_requires_admin(client):
     response = client.post("/menus/familles", json=payload)
     assert response.status_code in (401, 403)
 
-def test_categories_endpoints_superadmin_and_public(client):
+def test_categories_endpoints_admin_and_public(client):
     db_mock = MagicMock()
-    superadmin_user = User(id=uuid4(), name="SuperAdmin", email="superadmin@test.com")
-    normal_admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
+    restaurant_id = uuid4()
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com")
     cat_id = uuid4()
     famille_id = uuid4()
+
+    famille_obj = MenuFamille(
+        id=famille_id,
+        restaurantId=restaurant_id,
+        nom="Test Famille",
+        ordre=1,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
 
     cat_obj = MenuCategorie(
         id=cat_id,
@@ -446,40 +455,37 @@ def test_categories_endpoints_superadmin_and_public(client):
 
     db_mock.add.side_effect = mock_add
 
-    # 1. Non-superadmin cannot create category (403)
-    from app.dependencies import require_superadmin, get_optional_user_restaurant_id
-    from fastapi import HTTPException, status
-
-    def mock_require_superadmin_fail():
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Seul le superAdmin peut effectuer cette action")
-
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_current_user] = lambda: normal_admin_user
-    app.dependency_overrides[require_superadmin] = mock_require_superadmin_fail
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[require_admin] = lambda: admin_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
+    # 1. Admin creating category without menuFamilleId -> 400 Bad Request
+    res_400 = client.post("/menus/categories", json={"nom": "classique"})
+    assert res_400.status_code == 400
+
+    # 2. Admin creating category with non-existent menuFamilleId -> 404 Not Found
+    db_mock.query.side_effect = lambda model: MockQuery([])
+    res_404 = client.post("/menus/categories", json={"nom": "classique", "menuFamilleId": str(uuid4())})
+    assert res_404.status_code == 404
+
+    # 3. Admin successfully creates category associated with family (201)
+    db_mock.query.side_effect = lambda model: MockQuery(famille_obj)
     create_payload = {"nom": "classique", "menuFamilleId": str(famille_id), "ordre": 1}
-    res_403 = client.post("/menus/categories", json=create_payload)
-    assert res_403.status_code == 403
-
-    # 2. Superadmin can create category (201)
-    app.dependency_overrides[get_current_user] = lambda: superadmin_user
-    app.dependency_overrides[require_superadmin] = lambda: superadmin_user
-
-    db_mock.query.side_effect = lambda model: MockQuery(MenuFamille(id=famille_id, nom="Test Famille"))
     res_201 = client.post("/menus/categories", json=create_payload)
     assert res_201.status_code == 201, res_201.text
     data = res_201.json()
     assert data["nom"] == "classique"
+    assert data["menuFamilleId"] == str(famille_id)
 
-    # 3. GET categories is visible to users / public
+    # 4. GET categories list
     db_mock.query.side_effect = lambda model: MockQuery([cat_obj])
-
     res_list = client.get("/menus/categories")
     assert res_list.status_code == 200
     assert len(res_list.json()) == 1
     assert res_list.json()[0]["id"] == str(cat_id)
 
-    # 4. Superadmin can PATCH category
+    # 5. Admin can PATCH category
     db_mock.query.side_effect = lambda model: MockQuery(cat_obj)
     patch_payload = {"nom": "spécialité", "ordre": 2}
     res_patch = client.patch(f"/menus/categories/{cat_id}", json=patch_payload)
@@ -487,17 +493,7 @@ def test_categories_endpoints_superadmin_and_public(client):
     assert cat_obj.nom == MenuCategorieNom.SPECIALITE
     assert cat_obj.ordre == 2
 
-    # 5. Non-superadmin cannot PATCH category (403)
-    app.dependency_overrides[require_superadmin] = mock_require_superadmin_fail
-    res_patch_403 = client.patch(f"/menus/categories/{cat_id}", json=patch_payload)
-    assert res_patch_403.status_code == 403
-
-    # 6. Non-superadmin cannot DELETE category (403)
-    res_del_403 = client.delete(f"/menus/categories/{cat_id}")
-    assert res_del_403.status_code == 403
-
-    # 7. Superadmin can DELETE category (204)
-    app.dependency_overrides[require_superadmin] = lambda: superadmin_user
+    # 6. Admin can DELETE category (204)
     db_mock.query.side_effect = lambda model: MockQuery(cat_obj)
     res_del = client.delete(f"/menus/categories/{cat_id}")
     assert res_del.status_code == 204
