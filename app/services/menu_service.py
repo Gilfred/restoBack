@@ -230,11 +230,12 @@ def delete_menu_famille_image(db: Session, image_id: UUID, restaurant_id: UUID) 
 
 
 # --- MenuCategorie Services ---
-def create_menu_categorie(db: Session, cat_data: MenuCategorieCreate) -> MenuCategorie:
-    if cat_data.menuFamilleId:
-        famille = db.query(MenuFamille).filter(MenuFamille.id == cat_data.menuFamilleId).first()
-        if not famille:
-            raise HTTPException(status_code=404, detail="Famille de menu non trouvée")
+def create_menu_categorie(db: Session, cat_data: MenuCategorieCreate, restaurant_id: UUID) -> MenuCategorie:
+    if not cat_data.menuFamilleId:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La catégorie doit être associée à une famille de menu")
+    famille = get_menu_famille(db, cat_data.menuFamilleId, restaurant_id)
+    if not famille:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Famille de menu non trouvée pour ce restaurant")
     categorie = MenuCategorie(
         menuFamilleId=cat_data.menuFamilleId,
         nom=cat_data.nom,
@@ -262,16 +263,29 @@ def get_menu_categorie_by_id(db: Session, categorie_id: UUID, restaurant_id: Opt
     return query.first()
 
 def get_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> Optional[MenuCategorie]:
-    return get_menu_categorie_by_id(db, categorie_id, restaurant_id)
+    return (
+        db.query(MenuCategorie)
+        .outerjoin(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id)
+        .filter(
+            MenuCategorie.id == categorie_id,
+            (MenuFamille.restaurantId == restaurant_id) | (MenuCategorie.menuFamilleId.is_(None))
+        )
+        .first()
+    )
 
-def update_menu_categorie(db: Session, categorie_id: UUID, cat_data: MenuCategorieUpdate) -> Optional[MenuCategorie]:
-    categorie = db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id).first()
+def update_menu_categorie(db: Session, categorie_id: UUID, cat_data: MenuCategorieUpdate, restaurant_id: UUID) -> Optional[MenuCategorie]:
+    categorie = (
+        db.query(MenuCategorie)
+        .join(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id)
+        .filter(MenuCategorie.id == categorie_id, MenuFamille.restaurantId == restaurant_id)
+        .first()
+    )
     if not categorie:
         return None
     if cat_data.menuFamilleId is not None:
-        famille = db.query(MenuFamille).filter(MenuFamille.id == cat_data.menuFamilleId).first()
+        famille = get_menu_famille(db, cat_data.menuFamilleId, restaurant_id)
         if not famille:
-            raise HTTPException(status_code=404, detail="Famille de menu non trouvée")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Famille de menu non trouvée pour ce restaurant")
         categorie.menuFamilleId = cat_data.menuFamilleId
     if cat_data.nom is not None:
         categorie.nom = cat_data.nom
@@ -281,8 +295,13 @@ def update_menu_categorie(db: Session, categorie_id: UUID, cat_data: MenuCategor
     db.refresh(categorie)
     return categorie
 
-def delete_menu_categorie(db: Session, categorie_id: UUID) -> bool:
-    categorie = db.query(MenuCategorie).filter(MenuCategorie.id == categorie_id).first()
+def delete_menu_categorie(db: Session, categorie_id: UUID, restaurant_id: UUID) -> bool:
+    categorie = (
+        db.query(MenuCategorie)
+        .join(MenuFamille, MenuCategorie.menuFamilleId == MenuFamille.id)
+        .filter(MenuCategorie.id == categorie_id, MenuFamille.restaurantId == restaurant_id)
+        .first()
+    )
     if not categorie:
         return False
     db.delete(categorie)

@@ -177,12 +177,13 @@ def delete_famille_image(
 def create_categorie(
     cat_data: MenuCategorieCreate,
     db: Session = Depends(get_session),
-    superadmin_user = Depends(require_superadmin)
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
 ):
     """
-    Création d'une catégorie (réservé au SUPERADMIN).
+    Création d'une catégorie associée à une famille (réservé à l'ADMIN de restaurant).
     """
-    return menu_service.create_menu_categorie(db, cat_data)
+    return menu_service.create_menu_categorie(db, cat_data, restaurant_id)
 
 @router.get("/categories", response_model=List[MenuCategorieResponse])
 def list_categories(
@@ -190,7 +191,7 @@ def list_categories(
     restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
 ):
     """
-    Liste des catégories visible par tous les restaurants (catégories du restaurant + catégories créées par le superAdmin).
+    Liste des catégories visible par tous les restaurants (catégories du restaurant + catégories globales).
     """
     return menu_service.get_menu_categories(db, restaurant_id)
 
@@ -213,12 +214,13 @@ def update_categorie(
     categorie_id: UUID,
     cat_data: MenuCategorieUpdate,
     db: Session = Depends(get_session),
-    superadmin_user = Depends(require_superadmin)
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
 ):
     """
-    Mise à jour d'une catégorie (réservé au SUPERADMIN).
+    Mise à jour d'une catégorie (réservé à l'ADMIN de restaurant pour ses catégories).
     """
-    cat = menu_service.update_menu_categorie(db, categorie_id, cat_data)
+    cat = menu_service.update_menu_categorie(db, categorie_id, cat_data, restaurant_id)
     if not cat:
         raise HTTPException(status_code=404, detail="Catégorie non trouvée")
     return cat
@@ -227,12 +229,13 @@ def update_categorie(
 def delete_categorie(
     categorie_id: UUID,
     db: Session = Depends(get_session),
-    superadmin_user = Depends(require_superadmin)
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
 ):
     """
-    Suppression d'une catégorie (réservé au SUPERADMIN).
+    Suppression d'une catégorie (réservé à l'ADMIN de restaurant pour ses catégories).
     """
-    if not menu_service.delete_menu_categorie(db, categorie_id):
+    if not menu_service.delete_menu_categorie(db, categorie_id, restaurant_id):
         raise HTTPException(status_code=404, detail="Catégorie non trouvée")
     return None
 
