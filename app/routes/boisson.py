@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 from app.database import get_session
 from app.schemas.boisson import BoissonCreate, BoissonUpdate, BoissonResponse
 from app.services import boisson_service
-from app.dependencies import get_user_restaurant_id, get_optional_user_restaurant_id, require_admin
+from app.dependencies import get_user_restaurant_id, require_admin
 
 router = APIRouter()
 
@@ -20,13 +20,10 @@ def create_boisson(
 
 @router.get("/", response_model=List[BoissonResponse])
 def list_boissons(
-    restaurant_id: Optional[UUID] = Query(None),
-    restaurantId: Optional[UUID] = Query(None),
     db: Session = Depends(get_session),
-    user_restaurant_id: Optional[UUID] = Depends(get_optional_user_restaurant_id)
+    restaurant_id: UUID = Depends(get_user_restaurant_id)
 ):
-    target_restaurant_id = restaurant_id or restaurantId or user_restaurant_id
-    return boisson_service.get_boissons(db, target_restaurant_id)
+    return boisson_service.get_boissons(db, restaurant_id)
 
 @router.get("/{boisson_id}", response_model=BoissonResponse)
 def get_boisson(

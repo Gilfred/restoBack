@@ -5,7 +5,7 @@ from datetime import datetime
 from unittest.mock import MagicMock
 from app.main import app
 from app.database import get_session
-from app.dependencies import get_current_user, require_admin, require_manager_cashier, get_user_restaurant_id, get_optional_user_restaurant_id
+from app.dependencies import get_current_user, require_admin, require_manager_cashier, get_user_restaurant_id
 from app.models.user import User
 from app.models.boisson import Boisson
 from app.enums import BoissonContenance
@@ -83,7 +83,7 @@ def test_list_boissons(client):
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[get_optional_user_restaurant_id] = lambda: restaurant_id
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     db_mock.query.side_effect = lambda model: MockQuery(boisson_obj)
 
@@ -98,34 +98,17 @@ def test_list_boissons(client):
 
 def test_list_boissons_unauthenticated(client):
     db_mock = MagicMock()
-    restaurant_id = uuid4()
-
-    boisson_obj = Boisson(
-        id=uuid4(),
-        nomBoisson="Sprite",
-        prixVente=500.0,
-        contenance=BoissonContenance.CL33,
-        stock=10,
-        restaurantId=restaurant_id,
-        createdAt=datetime.now(),
-        updatedAt=datetime.now()
-    )
-
     app.dependency_overrides[get_session] = lambda: db_mock
-
-    db_mock.query.side_effect = lambda model: MockQuery(boisson_obj)
 
     response = client.get("/boissons/")
     app.dependency_overrides.clear()
 
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["nomBoisson"] == "Sprite"
+    assert response.status_code == 401
 
-def test_list_boissons_with_restaurant_id_query(client):
+def test_list_boissons_ignores_query_params(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
+    other_restaurant_id = uuid4()
 
     boisson_obj = Boisson(
         id=uuid4(),
@@ -139,16 +122,18 @@ def test_list_boissons_with_restaurant_id_query(client):
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     db_mock.query.side_effect = lambda model: MockQuery(boisson_obj)
 
-    response = client.get(f"/boissons/?restaurant_id={restaurant_id}")
+    response = client.get(f"/boissons/?restaurant_id={other_restaurant_id}&restaurantId={other_restaurant_id}")
     app.dependency_overrides.clear()
 
     assert response.status_code == 200, response.text
     data = response.json()
     assert len(data) == 1
     assert data[0]["nomBoisson"] == "Coca Cola"
+    assert data[0]["restaurantId"] == str(restaurant_id)
 
 def test_get_boisson(client):
     db_mock = MagicMock()

@@ -37,5 +37,10 @@ class Settings(BaseSettings):
     SEED_SUPERADMIN_EMAIL: str
     SEED_SUPERADMIN_PASSWORD: str
 
+    # Cloudinary Integration
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
+
 
 settings = Settings()
