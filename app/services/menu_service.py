@@ -406,6 +406,32 @@ def get_menu_boisson_familles(
         query = query.filter(MenuBoissonFamille.restaurantId == restaurant_id)
     return query.all()
 
+def get_my_restaurant_menu_boissons(db: Session, restaurant_id: UUID) -> List[dict]:
+    boisson_familles = (
+        db.query(MenuBoissonFamille)
+        .filter(MenuBoissonFamille.restaurantId == restaurant_id)
+        .options(
+            joinedload(MenuBoissonFamille.images),
+            joinedload(MenuBoissonFamille.boissons)
+            .joinedload(MenuBoisson.boisson)
+        )
+        .all()
+    )
+
+    results = []
+    for b_famille in boisson_familles:
+        drinks = [mb.boisson for mb in b_famille.boissons if mb.boisson is not None]
+        results.append({
+            "id": b_famille.id,
+            "nom": b_famille.nom,
+            "restaurantId": b_famille.restaurantId,
+            "createdAt": b_famille.createdAt,
+            "updatedAt": b_famille.updatedAt,
+            "images": b_famille.images,
+            "boissons": drinks
+        })
+    return results
+
 def get_menu_boisson_famille(
     db: Session,
     famille_id: UUID,

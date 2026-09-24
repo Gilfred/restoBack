@@ -18,6 +18,7 @@ from app.schemas.menu import (
     MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
     MenuBoissonFamilleCreate, MenuBoissonFamilleUpdate, MenuBoissonFamilleResponse,
+    MenuBoissonFamilleDetailResponse,
     MenuBoissonImageResponse, MenuBoissonImageUploadResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
     MenuFamilleImageUploadResponse
@@ -304,6 +305,18 @@ def list_boisson_familles(
     restaurant_id: Optional[UUID] = Query(None)
 ):
     return menu_service.get_menu_boisson_familles(db, restaurant_id)
+
+@router.get("/boissons/me", response_model=List[MenuBoissonFamilleDetailResponse])
+@router.get("/boissons/restaurant", response_model=List[MenuBoissonFamilleDetailResponse])
+def get_my_restaurant_boissons_menu(
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id)
+):
+    """
+    Récupère automatiquement le restaurant de l'utilisateur connecté
+    et retourne le menu boissons configuré pour ce restaurant.
+    """
+    return menu_service.get_my_restaurant_menu_boissons(db, restaurant_id)
 
 @router.get("/boissons/familles/{famille_id}", response_model=MenuBoissonFamilleResponse)
 def get_boisson_famille(

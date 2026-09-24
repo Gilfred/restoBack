@@ -118,6 +118,12 @@ class MenuBoissonImageResponse(MenuBoissonImageBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class MenuBoissonFamilleDetailResponse(MenuBoissonFamilleResponse):
+    images: List[MenuBoissonImageResponse] = []
+    boissons: List[BoissonResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 # --- MenuBoisson Schemas ---
 class MenuBoissonBase(BaseModel):

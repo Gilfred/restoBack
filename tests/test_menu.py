@@ -527,3 +527,181 @@ def test_multi_tenant_isolation_boissons(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Famille de boissons non trouvée pour ce restaurant"
+
+def test_get_menu_boissons_unauthenticated_public(client):
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+    famille_id = uuid4()
+
+    famille_obj = MenuBoissonFamille(
+        id=famille_id,
+        restaurantId=restaurant_id,
+        nom="Sodas",
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    image_obj = MenuBoissonImage(
+        id=uuid4(),
+        menuBoissonFamilleId=famille_id,
+        url="https://res.cloudinary.com/test/soda.png",
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+
+    # 1. GET /menus/boissons/familles without authentication
+    db_mock.query.side_effect = lambda model: MockQuery([famille_obj])
+    res_familles = client.get("/menus/boissons/familles")
+    assert res_familles.status_code == 200, res_familles.text
+    assert len(res_familles.json()) == 1
+    assert res_familles.json()[0]["nom"] == "Sodas"
+
+    # 2. GET /menus/boissons/familles/{id} without authentication
+    db_mock.query.side_effect = lambda model: MockQuery(famille_obj)
+    res_famille = client.get(f"/menus/boissons/familles/{famille_id}")
+    assert res_famille.status_code == 200, res_famille.text
+    assert res_famille.json()["id"] == str(famille_id)
+
+    # 3. GET /menus/boissons/familles/{id}/images without authentication
+    queries_img = [MockQuery(famille_obj), MockQuery([image_obj])]
+    db_mock.query.side_effect = lambda model: queries_img.pop(0)
+    res_images = client.get(f"/menus/boissons/familles/{famille_id}/images")
+    assert res_images.status_code == 200, res_images.text
+    assert len(res_images.json()) == 1
+    assert res_images.json()[0]["url"] == "https://res.cloudinary.com/test/soda.png"
+
+    app.dependency_overrides.clear()
+
+def test_get_my_restaurant_boissons_menu_authenticated(client):
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+    famille_id = uuid4()
+    boisson_id = uuid4()
+
+    user = User(id=uuid4(), name="User Resto A", email="usera@test.com")
+
+    boisson_obj = Boisson(
+        id=boisson_id,
+        restaurantId=restaurant_id,
+        nomBoisson="Juver Orange",
+        contenance=BoissonContenance.CL33,
+        prixVente=1200.0,
+        stock=25,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    famille_img1 = MenuBoissonImage(
+        id=uuid4(),
+        menuBoissonFamilleId=famille_id,
+        url="https://res.cloudinary.com/demo/famille_1.png",
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    famille_img2 = MenuBoissonImage(
+        id=uuid4(),
+        menuBoissonFamilleId=famille_id,
+        url="https://res.cloudinary.com/demo/famille_2.png",
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    menu_boisson_obj = MenuBoisson(
+        id=uuid4(),
+        menuBoissonFamilleId=famille_id,
+        boissonId=boisson_id,
+        boisson=boisson_obj,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    famille_obj = MenuBoissonFamille(
+        id=famille_id,
+        restaurantId=restaurant_id,
+        nom="Jus de fruits",
+        images=[famille_img1, famille_img2],
+        boissons=[menu_boisson_obj],
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    db_mock.query.side_effect = lambda model: MockQuery([famille_obj])
+
+    response = client.get("/menus/boissons/me")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert len(data) == 1
+    famille_res = data[0]
+    assert famille_res["id"] == str(famille_id)
+    assert famille_res["nom"] == "Jus de fruits"
+    assert len(famille_res["images"]) == 2
+    assert famille_res["images"][0]["url"] == "https://res.cloudinary.com/demo/famille_1.png"
+    assert famille_res["images"][1]["url"] == "https://res.cloudinary.com/demo/famille_2.png"
+    assert len(famille_res["boissons"]) == 1
+    assert famille_res["boissons"][0]["nomBoisson"] == "Juver Orange"
+    assert famille_res["boissons"][0]["prixVente"] == 1200.0
+
+def test_get_my_restaurant_boissons_menu_unauthenticated_fails(client):
+    db_mock = MagicMock()
+    app.dependency_overrides[get_session] = lambda: db_mock
+
+    response = client.get("/menus/boissons/me")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 401
+
+def test_multi_tenant_isolation_menu_boissons_authenticated(client):
+    db_mock = MagicMock()
+    restaurant_a_id = uuid4()
+    restaurant_b_id = uuid4()
+
+    user_a = User(id=uuid4(), name="User Resto A", email="usera@test.com")
+
+    famille_a = MenuBoissonFamille(
+        id=uuid4(),
+        restaurantId=restaurant_a_id,
+        nom="Boissons Resto A",
+        images=[],
+        boissons=[],
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: user_a
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_a_id
+
+    db_mock.query.side_effect = lambda model: MockQuery([famille_a])
+
+    response = client.get(f"/menus/boissons/me?restaurant_id={restaurant_b_id}&restaurantId={restaurant_b_id}")
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["restaurantId"] == str(restaurant_a_id)
+    assert data[0]["nom"] == "Boissons Resto A"
+
+def test_mutations_menu_boissons_remain_protected(client):
+    db_mock = MagicMock()
+    app.dependency_overrides[get_session] = lambda: db_mock
+
+    res_post = client.post("/menus/boissons/familles", json={"nom": "Test"})
+    assert res_post.status_code == 401
+
+    res_patch = client.patch(f"/menus/boissons/familles/{uuid4()}", json={"nom": "Test"})
+    assert res_patch.status_code == 401
+
+    res_delete = client.delete(f"/menus/boissons/familles/{uuid4()}")
+    assert res_delete.status_code == 401
+
+    app.dependency_overrides.clear()

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from app.enums import BoissonContenance
 
 class BoissonBase(BaseModel):
@@ -24,15 +24,5 @@ class BoissonResponse(BoissonBase):
     restaurantId: UUID
     createdAt: datetime
     updatedAt: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-from app.schemas.menu import MenuBoissonFamilleResponse, MenuBoissonImageResponse
-
-class BoissonWithFamilyAndImagesResponse(BaseModel):
-    boisson: BoissonResponse
-    famille: Optional[MenuBoissonFamilleResponse] = None
-    images: List[MenuBoissonImageResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 from app.database import get_session
-from app.schemas.boisson import BoissonCreate, BoissonUpdate, BoissonResponse, BoissonWithFamilyAndImagesResponse
+from app.schemas.boisson import BoissonCreate, BoissonUpdate, BoissonResponse
 from app.services import boisson_service
 from app.dependencies import get_user_restaurant_id, require_admin
 
@@ -21,24 +21,18 @@ def create_boisson(
 @router.get("/", response_model=List[BoissonResponse])
 def list_boissons(
     db: Session = Depends(get_session),
-    restaurant_id: Optional[UUID] = Query(None)
-):
-    return boisson_service.get_boissons(db, restaurant_id)
-
-@router.get("/me", response_model=List[BoissonWithFamilyAndImagesResponse])
-@router.get("/restaurant", response_model=List[BoissonWithFamilyAndImagesResponse])
-def list_my_restaurant_boissons(
-    db: Session = Depends(get_session),
     restaurant_id: UUID = Depends(get_user_restaurant_id)
 ):
-    return boisson_service.get_boissons_with_family_and_images(db, restaurant_id)
+    return boisson_service.get_boissons(db, restaurant_id)
 
 @router.get("/{boisson_id}", response_model=BoissonResponse)
 def get_boisson(
     boisson_id: UUID,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
 ):
-    db_boisson = boisson_service.get_boisson(db, boisson_id)
+    db_boisson = boisson_service.get_boisson(db, boisson_id, restaurant_id)
     if not db_boisson:
         raise HTTPException(status_code=404, detail="Boisson non trouvée")
     return db_boisson
