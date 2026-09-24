@@ -46,6 +46,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://vsltlf13-5173.uks1.devtunnels.ms/",
         # "https://grandresto.gilexist.workers.dev",
     ],
     allow_credentials=True,

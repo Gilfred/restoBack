@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from datetime import datetime
 from typing import List, Optional
-from app.enums import MenuCategorieNom
+from app.enums import MenuCategorieNom, BoissonContenance
 from app.schemas.repas import RepasResponse
 from app.schemas.boisson import BoissonResponse
 
@@ -170,11 +170,19 @@ class MenuBoissonImageDisplayResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class BoissonDisplayResponse(BaseModel):
+    id: UUID
+    nomBoisson: str
+    contenance: BoissonContenance
+    prixVente: float
+
+    model_config = ConfigDict(from_attributes=True)
+
 class MenuBoissonFamilleDisplayResponse(BaseModel):
     id: UUID
     nom: str
     images: List[MenuBoissonImageDisplayResponse] = []
-    boissons: List[BoissonResponse] = []
+    boissons: List[BoissonDisplayResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -168,10 +168,18 @@ def test_get_public_menu_display_populated(client):
         updatedAt=datetime.now()
     )
 
-    boisson_famille_img = MenuBoissonImage(
+    boisson_famille_img1 = MenuBoissonImage(
         id=uuid4(),
         menuBoissonFamilleId=boisson_famille_id,
         url="https://res.cloudinary.com/demo/image/upload/boisson_famille_1.png",
+        createdAt=datetime.now(),
+        updatedAt=datetime.now()
+    )
+
+    boisson_famille_img2 = MenuBoissonImage(
+        id=uuid4(),
+        menuBoissonFamilleId=boisson_famille_id,
+        url="https://res.cloudinary.com/demo/image/upload/boisson_famille_2.png",
         createdAt=datetime.now(),
         updatedAt=datetime.now()
     )
@@ -189,7 +197,7 @@ def test_get_public_menu_display_populated(client):
         id=boisson_famille_id,
         restaurantId=restaurant_id,
         nom="Nos boissons en bouteille",
-        images=[boisson_famille_img],
+        images=[boisson_famille_img1, boisson_famille_img2],
         boissons=[menu_boisson_obj],
         createdAt=datetime.now(),
         updatedAt=datetime.now()
@@ -221,9 +229,14 @@ def test_get_public_menu_display_populated(client):
     
     # Verify drink family structure in display
     assert len(resto_menu["boissons"]) == 1
-    assert resto_menu["boissons"][0]["nom"] == "Nos boissons en bouteille"
-    assert resto_menu["boissons"][0]["images"][0]["url"] == "https://res.cloudinary.com/demo/image/upload/boisson_famille_1.png"
-    assert resto_menu["boissons"][0]["boissons"][0]["nomBoisson"] == "Jus de Pomme"
+    boisson_famille_res = resto_menu["boissons"][0]
+    assert boisson_famille_res["nom"] == "Nos boissons en bouteille"
+    assert len(boisson_famille_res["images"]) == 2
+    assert boisson_famille_res["images"][0]["id"] == str(boisson_famille_img1.id)
+    assert boisson_famille_res["images"][0]["url"] == "https://res.cloudinary.com/demo/image/upload/boisson_famille_1.png"
+    assert boisson_famille_res["images"][1]["id"] == str(boisson_famille_img2.id)
+    assert boisson_famille_res["images"][1]["url"] == "https://res.cloudinary.com/demo/image/upload/boisson_famille_2.png"
+    assert boisson_famille_res["boissons"][0]["nomBoisson"] == "Jus de Pomme"
 
 def test_cloudinary_upload_endpoint(client):
     db_mock = MagicMock()

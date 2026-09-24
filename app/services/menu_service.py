@@ -68,7 +68,7 @@ def get_full_restaurant_menu(db: Session):
             formatted_boissons.append({
                 "id": b_famille.id,
                 "nom": b_famille.nom,
-                "images": b_famille.images,
+                "images": [{"id": img.id, "url": img.url} for img in b_famille.images],
                 "boissons": drinks
             })
 
