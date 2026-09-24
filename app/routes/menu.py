@@ -17,6 +17,8 @@ from app.schemas.menu import (
     MenuFamilleImageResponse,
     MenuCategorieCreate, MenuCategorieUpdate, MenuCategorieResponse,
     MenuRepasCreate, MenuRepasUpdate, MenuRepasResponse,
+    MenuBoissonFamilleCreate, MenuBoissonFamilleUpdate, MenuBoissonFamilleResponse,
+    MenuBoissonImageResponse, MenuBoissonImageUploadResponse,
     MenuBoissonCreate, MenuBoissonUpdate, MenuBoissonResponse,
     MenuFamilleImageUploadResponse
 )
@@ -285,7 +287,108 @@ def delete_menu_repas(
     return None
 
 
-# --- Menu Boisson ---
+# --- Menu Boissons Familles ---
+
+@router.post("/boissons/familles", response_model=MenuBoissonFamilleResponse, status_code=status.HTTP_201_CREATED)
+def create_boisson_famille(
+    famille_data: MenuBoissonFamilleCreate,
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
+):
+    return menu_service.create_menu_boisson_famille(db, famille_data, restaurant_id)
+
+@router.get("/boissons/familles", response_model=List[MenuBoissonFamilleResponse])
+def list_boisson_familles(
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id)
+):
+    return menu_service.get_menu_boisson_familles(db, restaurant_id)
+
+@router.get("/boissons/familles/{famille_id}", response_model=MenuBoissonFamilleResponse)
+def get_boisson_famille(
+    famille_id: UUID,
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id)
+):
+    famille = menu_service.get_menu_boisson_famille(db, famille_id, restaurant_id)
+    if not famille:
+        raise HTTPException(status_code=404, detail="Famille de boissons non trouvée")
+    return famille
+
+@router.patch("/boissons/familles/{famille_id}", response_model=MenuBoissonFamilleResponse)
+def update_boisson_famille(
+    famille_id: UUID,
+    famille_data: MenuBoissonFamilleUpdate,
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
+):
+    famille = menu_service.update_menu_boisson_famille(db, famille_id, famille_data, restaurant_id)
+    if not famille:
+        raise HTTPException(status_code=404, detail="Famille de boissons non trouvée")
+    return famille
+
+@router.delete("/boissons/familles/{famille_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_boisson_famille(
+    famille_id: UUID,
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
+):
+    if not menu_service.delete_menu_boisson_famille(db, famille_id, restaurant_id):
+        raise HTTPException(status_code=404, detail="Famille de boissons non trouvée")
+    return None
+
+
+# --- Menu Boisson Famille Images ---
+
+@router.post("/boissons/familles/{famille_id}/images", response_model=MenuBoissonImageUploadResponse, status_code=status.HTTP_201_CREATED)
+def upload_boisson_famille_image(
+    famille_id: UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seuls les fichiers de type image (JPEG, PNG, WEBP, etc.) sont autorisés"
+        )
+
+    contents = file.file.read()
+    filename = file.filename or "image.png"
+
+    return menu_service.upload_and_create_boisson_famille_image(
+        db=db,
+        famille_id=famille_id,
+        file_bytes=contents,
+        filename=filename,
+        restaurant_id=restaurant_id
+    )
+
+@router.get("/boissons/familles/{famille_id}/images", response_model=List[MenuBoissonImageResponse])
+def get_boisson_famille_images(
+    famille_id: UUID,
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id)
+):
+    return menu_service.get_boisson_famille_images(db, famille_id, restaurant_id)
+
+@router.delete("/boissons/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_boisson_famille_image(
+    image_id: UUID,
+    db: Session = Depends(get_session),
+    restaurant_id: UUID = Depends(get_user_restaurant_id),
+    admin_user = Depends(require_admin)
+):
+    if not menu_service.delete_boisson_famille_image(db, image_id, restaurant_id):
+        raise HTTPException(status_code=404, detail="Image de famille de boissons non trouvée")
+    return None
+
+
+# --- Menu Boissons (Association Boisson <-> Famille Boissons) ---
 
 @router.post("/boissons", response_model=MenuBoissonResponse, status_code=status.HTTP_201_CREATED)
 def create_menu_boisson(

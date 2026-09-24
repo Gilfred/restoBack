@@ -8,6 +8,8 @@ from app.models.menu_famille import MenuFamille
 from app.models.menu_famille_image import MenuFamilleImage
 from app.models.menu_categorie import MenuCategorie
 from app.models.menu_repas import MenuRepas
+from app.models.menu_boisson_famille import MenuBoissonFamille
+from app.models.menu_boisson_image import MenuBoissonImage
 from app.models.menu_boisson import MenuBoisson
 from app.models.repas import Repas
 from app.models.boisson import Boisson
@@ -16,6 +18,7 @@ from app.schemas.menu import (
     MenuFamilleImageUpdate,
     MenuCategorieCreate, MenuCategorieUpdate,
     MenuRepasCreate, MenuRepasUpdate,
+    MenuBoissonFamilleCreate, MenuBoissonFamilleUpdate,
     MenuBoissonCreate, MenuBoissonUpdate
 )
 from app.services import cloudinary_service
@@ -48,19 +51,31 @@ def get_full_restaurant_menu(db: Session):
             for cat in famille.categories:
                 cat.repasList.sort(key=lambda x: x.ordre or 0)
 
-        boissons = (
-            db.query(MenuBoisson)
-            .join(Boisson, MenuBoisson.boissonId == Boisson.id)
-            .filter(Boisson.restaurantId == target_restaurant_id)
-            .options(joinedload(MenuBoisson.boisson))
-            .order_by(MenuBoisson.ordre.asc())
+        boisson_familles = (
+            db.query(MenuBoissonFamille)
+            .filter(MenuBoissonFamille.restaurantId == target_restaurant_id)
+            .options(
+                joinedload(MenuBoissonFamille.images),
+                joinedload(MenuBoissonFamille.boissons)
+                .joinedload(MenuBoisson.boisson)
+            )
             .all()
         )
+
+        formatted_boissons = []
+        for b_famille in boisson_familles:
+            drinks = [mb.boisson for mb in b_famille.boissons if mb.boisson is not None]
+            formatted_boissons.append({
+                "id": b_famille.id,
+                "nom": b_famille.nom,
+                "images": b_famille.images,
+                "boissons": drinks
+            })
 
         restaurant_menus.append({
             "restaurant": restaurant,
             "familles": familles,
-            "boissons": boissons
+            "boissons": formatted_boissons
         })
 
     return {
@@ -367,16 +382,180 @@ def delete_menu_repas(db: Session, menu_repas_id: UUID, restaurant_id: UUID) -> 
     return True
 
 
+# --- MenuBoissonFamille Services ---
+def create_menu_boisson_famille(
+    db: Session,
+    famille_data: MenuBoissonFamilleCreate,
+    restaurant_id: UUID
+) -> MenuBoissonFamille:
+    boisson_famille = MenuBoissonFamille(
+        restaurantId=restaurant_id,
+        nom=famille_data.nom
+    )
+    db.add(boisson_famille)
+    db.commit()
+    db.refresh(boisson_famille)
+    return boisson_famille
+
+def get_menu_boisson_familles(
+    db: Session,
+    restaurant_id: UUID
+) -> List[MenuBoissonFamille]:
+    return (
+        db.query(MenuBoissonFamille)
+        .filter(MenuBoissonFamille.restaurantId == restaurant_id)
+        .all()
+    )
+
+def get_menu_boisson_famille(
+    db: Session,
+    famille_id: UUID,
+    restaurant_id: UUID
+) -> Optional[MenuBoissonFamille]:
+    return (
+        db.query(MenuBoissonFamille)
+        .filter(
+            MenuBoissonFamille.id == famille_id,
+            MenuBoissonFamille.restaurantId == restaurant_id
+        )
+        .first()
+    )
+
+def update_menu_boisson_famille(
+    db: Session,
+    famille_id: UUID,
+    famille_data: MenuBoissonFamilleUpdate,
+    restaurant_id: UUID
+) -> Optional[MenuBoissonFamille]:
+    famille = get_menu_boisson_famille(db, famille_id, restaurant_id)
+    if not famille:
+        return None
+    if famille_data.nom is not None:
+        famille.nom = famille_data.nom
+    db.commit()
+    db.refresh(famille)
+    return famille
+
+def delete_menu_boisson_famille(
+    db: Session,
+    famille_id: UUID,
+    restaurant_id: UUID
+) -> bool:
+    famille = get_menu_boisson_famille(db, famille_id, restaurant_id)
+    if not famille:
+        return False
+    db.delete(famille)
+    db.commit()
+    return True
+
+
+# --- MenuBoissonImage Services ---
+def upload_and_create_boisson_famille_image(
+    db: Session,
+    famille_id: UUID,
+    file_bytes: bytes,
+    filename: str,
+    restaurant_id: UUID
+) -> dict:
+    famille = get_menu_boisson_famille(db, famille_id, restaurant_id)
+    if not famille:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Famille de boissons non trouvée pour ce restaurant"
+        )
+
+    # Enforce maximum 3 images rule
+    image_count = db.query(MenuBoissonImage).filter(MenuBoissonImage.menuBoissonFamilleId == famille_id).count()
+    if image_count >= 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Une famille de boissons ne peut avoir que 3 images maximum."
+        )
+
+    res = cloudinary_service.upload_image(file_bytes=file_bytes, filename=filename)
+    image_url = res.get("url")
+    public_id = res.get("public_id")
+
+    image = MenuBoissonImage(
+        menuBoissonFamilleId=famille_id,
+        url=image_url
+    )
+
+    try:
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+        return {
+            "id": image.id,
+            "menuBoissonFamilleId": image.menuBoissonFamilleId,
+            "url": image.url,
+            "public_id": public_id
+        }
+    except Exception as e:
+        db.rollback()
+        if public_id:
+            cloudinary_service.delete_image(public_id)
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Échec de l'enregistrement de l'image en base de données: {str(e)}"
+        )
+
+def get_boisson_famille_images(
+    db: Session,
+    famille_id: UUID,
+    restaurant_id: UUID
+) -> List[MenuBoissonImage]:
+    famille = get_menu_boisson_famille(db, famille_id, restaurant_id)
+    if not famille:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Famille de boissons non trouvée pour ce restaurant"
+        )
+    return db.query(MenuBoissonImage).filter(MenuBoissonImage.menuBoissonFamilleId == famille_id).all()
+
+def delete_boisson_famille_image(
+    db: Session,
+    image_id: UUID,
+    restaurant_id: UUID
+) -> bool:
+    image = (
+        db.query(MenuBoissonImage)
+        .join(MenuBoissonFamille, MenuBoissonImage.menuBoissonFamilleId == MenuBoissonFamille.id)
+        .filter(
+            MenuBoissonImage.id == image_id,
+            MenuBoissonFamille.restaurantId == restaurant_id
+        )
+        .first()
+    )
+    if not image:
+        return False
+
+    old_public_id = cloudinary_service.extract_public_id_from_url(image.url)
+    db.delete(image)
+    db.commit()
+    if old_public_id:
+        cloudinary_service.delete_image(old_public_id)
+    return True
+
+
 # --- MenuBoisson Services ---
 def create_menu_boisson(db: Session, mb_data: MenuBoissonCreate, restaurant_id: UUID) -> MenuBoisson:
+    famille = get_menu_boisson_famille(db, mb_data.menuBoissonFamilleId, restaurant_id)
+    if not famille:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Famille de boissons non trouvée pour ce restaurant"
+        )
+
     boisson = db.query(Boisson).filter(Boisson.id == mb_data.boissonId, Boisson.restaurantId == restaurant_id).first()
     if not boisson:
-        raise HTTPException(status_code=404, detail="Boisson non trouvée pour ce restaurant")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Boisson non trouvée pour ce restaurant")
+
     menu_boisson = MenuBoisson(
-        boissonId=mb_data.boissonId,
-        ordre=mb_data.ordre or 0,
-        imageUrl=mb_data.imageUrl
+        menuBoissonFamilleId=mb_data.menuBoissonFamilleId,
+        boissonId=mb_data.boissonId
     )
     db.add(menu_boisson)
     db.commit()
@@ -386,8 +565,11 @@ def create_menu_boisson(db: Session, mb_data: MenuBoissonCreate, restaurant_id: 
 def get_menu_boisson(db: Session, menu_boisson_id: UUID, restaurant_id: UUID) -> Optional[MenuBoisson]:
     return (
         db.query(MenuBoisson)
-        .join(Boisson, MenuBoisson.boissonId == Boisson.id)
-        .filter(MenuBoisson.id == menu_boisson_id, Boisson.restaurantId == restaurant_id)
+        .join(MenuBoissonFamille, MenuBoisson.menuBoissonFamilleId == MenuBoissonFamille.id)
+        .filter(
+            MenuBoisson.id == menu_boisson_id,
+            MenuBoissonFamille.restaurantId == restaurant_id
+        )
         .first()
     )
 
@@ -395,15 +577,22 @@ def update_menu_boisson(db: Session, menu_boisson_id: UUID, mb_data: MenuBoisson
     menu_boisson = get_menu_boisson(db, menu_boisson_id, restaurant_id)
     if not menu_boisson:
         return None
+
+    if mb_data.menuBoissonFamilleId is not None:
+        famille = get_menu_boisson_famille(db, mb_data.menuBoissonFamilleId, restaurant_id)
+        if not famille:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Famille de boissons non trouvée pour ce restaurant"
+            )
+        menu_boisson.menuBoissonFamilleId = mb_data.menuBoissonFamilleId
+
     if mb_data.boissonId is not None:
         boisson = db.query(Boisson).filter(Boisson.id == mb_data.boissonId, Boisson.restaurantId == restaurant_id).first()
         if not boisson:
-            raise HTTPException(status_code=404, detail="Boisson non trouvée pour ce restaurant")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Boisson non trouvée pour ce restaurant")
         menu_boisson.boissonId = mb_data.boissonId
-    if mb_data.ordre is not None:
-        menu_boisson.ordre = mb_data.ordre
-    if mb_data.imageUrl is not None:
-        menu_boisson.imageUrl = mb_data.imageUrl
+
     db.commit()
     db.refresh(menu_boisson)
     return menu_boisson
