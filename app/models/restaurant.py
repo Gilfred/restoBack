@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.casier import Casier
     from app.models.unite import Unite
     from app.models.menu_famille import MenuFamille
+    from app.models.menu_boisson_famille import MenuBoissonFamille
 
 class Restaurant(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -45,3 +46,4 @@ class Restaurant(Base):
     casiers = relationship("Casier", back_populates="restaurant")
     unites = relationship("Unite", back_populates="restaurant")
     menuFamilles = relationship("MenuFamille", back_populates="restaurant")
+    menuBoissonFamilles = relationship("MenuBoissonFamille", back_populates="restaurant")

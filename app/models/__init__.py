@@ -24,4 +24,6 @@ from app.models.menu_famille import MenuFamille
 from app.models.menu_famille_image import MenuFamilleImage
 from app.models.menu_categorie import MenuCategorie
 from app.models.menu_repas import MenuRepas
+from app.models.menu_boisson_famille import MenuBoissonFamille
+from app.models.menu_boisson_image import MenuBoissonImage
 from app.models.menu_boisson import MenuBoisson

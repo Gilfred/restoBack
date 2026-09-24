@@ -89,22 +89,50 @@ class MenuRepasResponse(MenuRepasBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# --- MenuBoissonFamille & MenuBoissonImage Schemas ---
+class MenuBoissonFamilleBase(BaseModel):
+    nom: str
+
+class MenuBoissonFamilleCreate(MenuBoissonFamilleBase):
+    pass
+
+class MenuBoissonFamilleUpdate(BaseModel):
+    nom: Optional[str] = None
+
+class MenuBoissonFamilleResponse(MenuBoissonFamilleBase):
+    id: UUID
+    restaurantId: UUID
+    createdAt: datetime
+    updatedAt: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class MenuBoissonImageBase(BaseModel):
+    url: str
+
+class MenuBoissonImageResponse(MenuBoissonImageBase):
+    id: UUID
+    menuBoissonFamilleId: UUID
+    createdAt: datetime
+    updatedAt: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- MenuBoisson Schemas ---
 class MenuBoissonBase(BaseModel):
-    ordre: Optional[int] = 0
-    imageUrl: Optional[str] = None
-
-class MenuBoissonCreate(MenuBoissonBase):
+    menuBoissonFamilleId: UUID
     boissonId: UUID
 
+class MenuBoissonCreate(MenuBoissonBase):
+    pass
+
 class MenuBoissonUpdate(BaseModel):
-    ordre: Optional[int] = None
-    imageUrl: Optional[str] = None
+    menuBoissonFamilleId: Optional[UUID] = None
     boissonId: Optional[UUID] = None
 
 class MenuBoissonResponse(MenuBoissonBase):
     id: UUID
-    boissonId: Optional[UUID] = None
     createdAt: datetime
     updatedAt: datetime
 
@@ -136,11 +164,17 @@ class MenuFamilleDisplayResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class MenuBoissonDisplayResponse(BaseModel):
+class MenuBoissonImageDisplayResponse(BaseModel):
     id: UUID
-    ordre: int
-    imageUrl: Optional[str] = None
-    boisson: Optional[BoissonResponse] = None
+    url: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class MenuBoissonFamilleDisplayResponse(BaseModel):
+    id: UUID
+    nom: str
+    images: List[MenuBoissonImageDisplayResponse] = []
+    boissons: List[BoissonResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -155,7 +189,7 @@ class RestaurantSimpleResponse(BaseModel):
 class RestaurantMenuDisplayResponse(BaseModel):
     restaurant: RestaurantSimpleResponse
     familles: List[MenuFamilleDisplayResponse] = []
-    boissons: List[MenuBoissonDisplayResponse] = []
+    boissons: List[MenuBoissonFamilleDisplayResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -169,6 +203,14 @@ class MenuFamilleImageUploadResponse(BaseModel):
     familleId: UUID
     imageUrl: str
     ordre: int
+    public_id: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class MenuBoissonImageUploadResponse(BaseModel):
+    id: UUID
+    menuBoissonFamilleId: UUID
+    url: str
     public_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
