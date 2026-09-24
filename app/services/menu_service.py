@@ -399,27 +399,22 @@ def create_menu_boisson_famille(
 
 def get_menu_boisson_familles(
     db: Session,
-    restaurant_id: UUID
+    restaurant_id: Optional[UUID] = None
 ) -> List[MenuBoissonFamille]:
-    return (
-        db.query(MenuBoissonFamille)
-        .filter(MenuBoissonFamille.restaurantId == restaurant_id)
-        .all()
-    )
+    query = db.query(MenuBoissonFamille)
+    if restaurant_id:
+        query = query.filter(MenuBoissonFamille.restaurantId == restaurant_id)
+    return query.all()
 
 def get_menu_boisson_famille(
     db: Session,
     famille_id: UUID,
-    restaurant_id: UUID
+    restaurant_id: Optional[UUID] = None
 ) -> Optional[MenuBoissonFamille]:
-    return (
-        db.query(MenuBoissonFamille)
-        .filter(
-            MenuBoissonFamille.id == famille_id,
-            MenuBoissonFamille.restaurantId == restaurant_id
-        )
-        .first()
-    )
+    query = db.query(MenuBoissonFamille).filter(MenuBoissonFamille.id == famille_id)
+    if restaurant_id:
+        query = query.filter(MenuBoissonFamille.restaurantId == restaurant_id)
+    return query.first()
 
 def update_menu_boisson_famille(
     db: Session,
@@ -505,13 +500,13 @@ def upload_and_create_boisson_famille_image(
 def get_boisson_famille_images(
     db: Session,
     famille_id: UUID,
-    restaurant_id: UUID
+    restaurant_id: Optional[UUID] = None
 ) -> List[MenuBoissonImage]:
     famille = get_menu_boisson_famille(db, famille_id, restaurant_id)
     if not famille:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Famille de boissons non trouvée pour ce restaurant"
+            detail="Famille de boissons non trouvée"
         )
     return db.query(MenuBoissonImage).filter(MenuBoissonImage.menuBoissonFamilleId == famille_id).all()
 
