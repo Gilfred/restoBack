@@ -50,13 +50,13 @@ def seed_data():
         all_permissions = {p.name: p for p in session.execute(select(Permission)).scalars().all()}
 
         role_permissions_mapping = {
-            "SUPERADMIN": list(all_permissions.keys()),
+            "SUPERADMIN": [p for p in all_permissions.keys() if p != "create_orders"],
             "ADMIN": [
-                "manage_staff", "create_orders", "update_orders",
+                "manage_staff", "update_orders",
                 "view_orders", "view_menu", "process_payments", "view_restaurant_reports"
             ],
             "WAITER": ["create_orders", "update_orders", "view_orders", "view_menu"],
-            "MANAGER_CASHIER": ["view_orders", "process_payments", "view_restaurant_reports"]
+            "MANAGER_CASHIER": ["create_orders", "update_orders", "view_orders", "process_payments", "view_restaurant_reports"]
         }
 
         for role_name, perms in role_permissions_mapping.items():

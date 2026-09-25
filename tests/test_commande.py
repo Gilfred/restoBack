@@ -546,3 +546,79 @@ def test_endpoint_delete_commande(client):
 
         assert response.status_code == 200
         assert response.json()["message"] == "Commande supprimée"
+
+
+# --- TESTS DE RESTRICTION DE CRÉATION POUR LES ADMINS ---
+
+def test_admin_cannot_create_commande_dependency():
+    db_mock = MagicMock()
+    admin_role = Role(name="ADMIN")
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com", roles=[admin_role])
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_manager_cashier(current_user=admin_user, db=db_mock)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "Accès refusé : un administrateur ne peut pas passer de commande"
+
+
+def test_superadmin_cannot_create_commande_dependency():
+    db_mock = MagicMock()
+    superadmin_role = Role(name="SUPERADMIN")
+    superadmin_user = User(id=uuid4(), name="Superadmin", email="superadmin@test.com", roles=[superadmin_role])
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_manager_cashier(current_user=superadmin_user, db=db_mock)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "Accès refusé : un administrateur ne peut pas passer de commande"
+
+
+def test_owner_cannot_create_commande_dependency():
+    db_mock = MagicMock()
+    owner_user = User(id=uuid4(), name="Owner", email="owner@test.com", roles=[])
+
+    # Owner query returns a restaurant where ownerId == owner_user.id
+    db_mock.query().filter().first.return_value = MagicMock()
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_manager_cashier(current_user=owner_user, db=db_mock)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "Accès refusé : un administrateur ne peut pas passer de commande"
+
+
+def test_manager_cashier_can_pass_dependency():
+    db_mock = MagicMock()
+    manager_role = Role(name="MANAGER_CASHIER")
+    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com", roles=[manager_role])
+
+    def query_side_effect(model):
+        q = MagicMock()
+        q.filter.return_value = q
+        q.join.return_value = q
+        q.first.return_value = None
+        return q
+
+    db_mock.query.side_effect = query_side_effect
+
+    result = require_manager_cashier(current_user=manager_user, db=db_mock)
+    assert result == manager_user
+
+
+def test_waiter_can_pass_dependency():
+    db_mock = MagicMock()
+    waiter_role = Role(name="WAITER")
+    waiter_user = User(id=uuid4(), name="Waiter", email="waiter@test.com", roles=[waiter_role])
+
+    def query_side_effect(model):
+        q = MagicMock()
+        q.filter.return_value = q
+        q.join.return_value = q
+        q.first.return_value = None
+        return q
+
+    db_mock.query.side_effect = query_side_effect
+
+    result = require_manager_cashier(current_user=waiter_user, db=db_mock)
+    assert result == waiter_user
