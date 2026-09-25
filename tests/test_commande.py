@@ -185,10 +185,12 @@ def test_create_commande_no_articles():
 
 def test_endpoint_create_commande(client):
     db_mock = MagicMock()
+    db_mock.query.side_effect = lambda model: MockQuery([])
     restaurant_id = uuid4()
     waiter_id = uuid4()
     boisson_id = uuid4()
-    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com")
+    manager_role = Role(name="MANAGER_CASHIER")
+    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com", roles=[manager_role])
 
     waiter_user = User(id=waiter_id, name="Serveuse 1", email="waiter@test.com", restaurantId=restaurant_id)
 
@@ -217,7 +219,7 @@ def test_endpoint_create_commande(client):
     )
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[require_manager_cashier] = lambda: manager_user
+    app.dependency_overrides[get_current_user] = lambda: manager_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     with patch("app.services.commande_service.create_commande") as mock_create:
@@ -238,6 +240,117 @@ def test_endpoint_create_commande(client):
         assert data["id"] == str(commande_id)
         assert data["numeroCommande"] == "CMD-12345678"
         assert data["total"] == 1000.0
+
+
+def test_superadmin_can_create_commande(client):
+    """Verify that a SUPERADMIN can create a commande."""
+    db_mock = MagicMock()
+    db_mock.query.side_effect = lambda model: MockQuery([])
+    restaurant_id = uuid4()
+    waiter_id = uuid4()
+    boisson_id = uuid4()
+    superadmin_role = Role(name="SUPERADMIN")
+    superadmin_user = User(id=uuid4(), name="SuperAdmin", email="superadmin@test.com", roles=[superadmin_role], restaurantId=restaurant_id)
+
+    commande_id = uuid4()
+    created_commande = Commande(
+        id=commande_id,
+        restaurantId=restaurant_id,
+        numeroCommande="CMD-87654321",
+        userId=waiter_id,
+        total=500.0,
+        statut=CommandeStatut.PENDING,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now(),
+        user=superadmin_user,
+        articles=[]
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: superadmin_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    with patch("app.services.commande_service.create_commande") as mock_create:
+        mock_create.return_value = created_commande
+
+        payload = {
+            "userId": str(waiter_id),
+            "articles": [
+                {"boissonId": str(boisson_id), "qte": 1}
+            ]
+        }
+
+        response = client.post("/commandes/", json=payload)
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["id"] == str(commande_id)
+
+
+def test_admin_cannot_create_commande(client):
+    """Verify that an ADMIN cannot create a commande and receives 403 Forbidden."""
+    db_mock = MagicMock()
+    db_mock.query.side_effect = lambda model: MockQuery([])
+    restaurant_id = uuid4()
+    waiter_id = uuid4()
+    boisson_id = uuid4()
+    admin_role = Role(name="ADMIN")
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com", roles=[admin_role])
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    payload = {
+        "userId": str(waiter_id),
+        "articles": [
+            {"boissonId": str(boisson_id), "qte": 2}
+        ]
+    }
+
+    response = client.post("/commandes/", json=payload)
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    assert "ADMIN" in response.json()["detail"]
+
+
+def test_admin_can_consult_restaurant_commandes(client):
+    """Verify that an ADMIN can list restaurant commandes (GET /commandes/)."""
+    db_mock = MagicMock()
+    restaurant_id = uuid4()
+    admin_role = Role(name="ADMIN")
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com", roles=[admin_role])
+
+    commande = Commande(
+        id=uuid4(),
+        restaurantId=restaurant_id,
+        numeroCommande="CMD-ADM12345",
+        userId=admin_user.id,
+        total=5000.0,
+        statut=CommandeStatut.PENDING,
+        createdAt=datetime.now(),
+        updatedAt=datetime.now(),
+        user=admin_user,
+        articles=[]
+    )
+
+    app.dependency_overrides[get_session] = lambda: db_mock
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[require_manager_or_admin] = lambda: admin_user
+    app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
+
+    with patch("app.services.commande_service.get_commandes") as mock_get_cmds:
+        mock_get_cmds.return_value = [commande]
+
+        response = client.get("/commandes/")
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["numeroCommande"] == "CMD-ADM12345"
 
 
 def test_endpoint_list_waiters(client):
