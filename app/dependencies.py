@@ -159,33 +159,52 @@ def require_manager_cashier(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session)
 ) -> User:
-    """Check if the user is a MANAGER_CASHIER, ADMIN, SUPERADMIN, or restaurant owner."""
-    allowed_roles = ["MANAGER_CASHIER", "ADMIN", "SUPERADMIN"]
-    is_manager = any(role.name.upper() in allowed_roles for role in current_user.roles if role.name)
+    """
+    Vérifie que l'utilisateur est autorisé à passer une commande.
+    Les administrateurs (ADMIN, SUPERADMIN, propriétaires) sont explicitement refusés.
+    """
+    from app.models.restaurant import Restaurant
+    from app.models.associations import UserRole
+    from app.models.role import Role
+    from sqlalchemy import func
 
-    if not is_manager:
-        # Fallback 1: check if they are an owner of any restaurant
-        from app.models.restaurant import Restaurant
+    # 1. Refuser les administrateurs et propriétaires de restaurant
+    admin_roles = ["ADMIN", "SUPERADMIN"]
+    is_admin = any(role.name and role.name.upper() in admin_roles for role in current_user.roles)
+
+    if not is_admin:
         is_owner = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
         if is_owner:
-            is_manager = True
+            is_admin = True
 
-    if not is_manager:
-        # Fallback 2: check database directly for roles
-        from app.models.associations import UserRole
-        from app.models.role import Role
-        from sqlalchemy import func
+    if not is_admin:
+        is_admin = db.query(Role).join(UserRole).filter(
+            UserRole.userId == current_user.id,
+            func.upper(Role.name).in_(admin_roles)
+        ).first() is not None
 
-        is_manager = db.query(Role).join(UserRole).filter(
+    if is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : un administrateur ne peut pas passer de commande"
+        )
+
+    # 2. Autoriser le personnel autorisé (MANAGER_CASHIER, WAITER)
+    allowed_roles = ["MANAGER_CASHIER", "WAITER"]
+    has_role = any(role.name and role.name.upper() in allowed_roles for role in current_user.roles)
+
+    if not has_role:
+        has_role = db.query(Role).join(UserRole).filter(
             UserRole.userId == current_user.id,
             func.upper(Role.name).in_(allowed_roles)
         ).first() is not None
 
-    if not is_manager:
+    if not has_role:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès refusé: seul un gérant ou administrateur peut accéder à cette fonction"
+            detail="Accès refusé : rôle MANAGER_CASHIER ou WAITER requis pour passer une commande"
         )
+
     return current_user
 
 def restrict_staff_modification(
@@ -236,12 +255,24 @@ def check_permissions(*required_permissions: str):
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_session)
     ) -> User:
-        # SUPERADMIN has all permissions
+        from app.models.restaurant import Restaurant
+
+        # Explicitly forbid admins/owners from creating orders
+        if "create_orders" in required_permissions:
+            is_admin_user = any(role.name and role.name.upper() in ["ADMIN", "SUPERADMIN"] for role in current_user.roles)
+            if not is_admin_user:
+                is_admin_user = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
+            if is_admin_user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Accès refusé : un administrateur ne peut pas passer de commande"
+                )
+
+        # SUPERADMIN has all other permissions
         if any(role.name.upper() == "SUPERADMIN" for role in current_user.roles if role.name):
             return current_user
 
         # OWNER fallback: Restaurant owners have all permissions for their restaurant
-        from app.models.restaurant import Restaurant
         is_owner = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
         if is_owner:
             return current_user
