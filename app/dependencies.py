@@ -159,23 +159,41 @@ def require_manager_cashier(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session)
 ) -> User:
-    """Check if the user is a MANAGER_CASHIER, ADMIN, SUPERADMIN, or restaurant owner."""
-    allowed_roles = ["MANAGER_CASHIER", "ADMIN", "SUPERADMIN"]
-    is_manager = any(role.name.upper() in allowed_roles for role in current_user.roles if role.name)
+    """
+    Check if the user is authorized to create orders (MANAGER_CASHIER, SUPERADMIN, owner).
+    Explicitly forbids the ADMIN role.
+    """
+    from app.models.associations import UserRole
+    from app.models.role import Role
+    from app.models.restaurant import Restaurant
+    from sqlalchemy import func
+
+    # 1. Explicitly deny access if user has the ADMIN role
+    is_admin = any(role.name and role.name.upper() == "ADMIN" for role in current_user.roles)
+    if not is_admin:
+        is_admin = db.query(Role).join(UserRole).filter(
+            UserRole.userId == current_user.id,
+            func.upper(Role.name) == "ADMIN"
+        ).first() is not None
+
+    if is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé: le rôle ADMIN n'est pas autorisé à créer une commande"
+        )
+
+    # 2. Check allowed roles for order creation (MANAGER_CASHIER, SUPERADMIN)
+    allowed_roles = ["MANAGER_CASHIER", "SUPERADMIN"]
+    is_manager = any(role.name and role.name.upper() in allowed_roles for role in current_user.roles)
 
     if not is_manager:
         # Fallback 1: check if they are an owner of any restaurant
-        from app.models.restaurant import Restaurant
         is_owner = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
         if is_owner:
             is_manager = True
 
     if not is_manager:
         # Fallback 2: check database directly for roles
-        from app.models.associations import UserRole
-        from app.models.role import Role
-        from sqlalchemy import func
-
         is_manager = db.query(Role).join(UserRole).filter(
             UserRole.userId == current_user.id,
             func.upper(Role.name).in_(allowed_roles)
@@ -186,6 +204,7 @@ def require_manager_cashier(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès refusé: seul un gérant ou administrateur peut accéder à cette fonction"
         )
+
     return current_user
 
 def restrict_staff_modification(
