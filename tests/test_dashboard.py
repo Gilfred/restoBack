@@ -206,6 +206,7 @@ def test_dashboard_invalid_period_param(client):
 
 def test_dashboard_waiter_role_denied(client):
     db_mock = MagicMock()
+    db_mock.query.return_value.filter.return_value.first.return_value = None
     db_mock.query.return_value.join.return_value.filter.return_value.first.return_value = None
     waiter_role = Role(name="WAITER")
     waiter_user = User(id=uuid4(), name="Waiter", email="waiter@test.com", roles=[waiter_role])

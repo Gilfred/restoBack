@@ -298,74 +298,97 @@ def get_user_restaurant_id(
     from app.services import restaurant_user_service
     from app.enums import UserRestaurantStatus
     from app.models.restaurant_user import RestaurantUser
+    from app.models.restaurant import Restaurant
 
+    # 1. Check get_my_restaurant
     ru = restaurant_user_service.get_my_restaurant(db, current_user.id)
-    if not ru:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="L'utilisateur n'est associé à aucun restaurant"
-        )
+    if ru:
+        if isinstance(ru, dict):
+            # Case for owners (returned as dict by get_my_restaurant)
+            if ru.get("status") != UserRestaurantStatus.ACTIVE:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Le restaurant n'est pas actif"
+                )
+            restaurant = ru.get("restaurant")
+            if restaurant:
+                return restaurant.id
 
-    if isinstance(ru, dict):
-        # Case for owners (returned as dict by get_my_restaurant)
-        if ru.get("status") != UserRestaurantStatus.ACTIVE:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Le restaurant n'est pas actif"
-            )
-        restaurant = ru.get("restaurant")
-        if not restaurant:
-            raise HTTPException(status_code=500, detail="Données du restaurant manquantes")
+        if isinstance(ru, RestaurantUser):
+            # Case for staff (returned as RestaurantUser object)
+            if ru.status != UserRestaurantStatus.ACTIVE:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Votre accès au restaurant n'est pas encore actif ou a été révoqué"
+                )
+            return ru.restaurantId
+
+    # 2. Check if user.restaurantId is populated directly
+    if current_user.restaurantId:
+        restaurant = db.query(Restaurant).filter(Restaurant.id == current_user.restaurantId).first()
+        if restaurant and restaurant.isActive:
+            return restaurant.id
+
+    # 3. Check if user is owner of any active restaurant
+    restaurant = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id, Restaurant.isActive == True).first()
+    if restaurant:
         return restaurant.id
 
-    if isinstance(ru, RestaurantUser):
-        # Case for staff (returned as RestaurantUser object)
-        if ru.status != UserRestaurantStatus.ACTIVE:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Votre accès au restaurant n'est pas encore actif ou a été révoqué"
-            )
-        return ru.restaurantId
-
-    raise HTTPException(status_code=500, detail="Type de données restaurant inattendu")
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="L'utilisateur n'est associé à aucun restaurant actif"
+    )
 
 
-#Autorise uniquement les utilisateurs ayant le rôle MANAGER_CASHIER ou ADMIN dans leur restaurant 
+#Autorise les utilisateurs ayant le rôle MANAGER_CASHIER, ADMIN ou SUPERADMIN, ou propriétaire de restaurant
 def require_manager_or_admin(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session)
 ) -> User:
     """
     Autorise uniquement les utilisateurs ayant le rôle
-    MANAGER_CASHIER ou ADMIN dans leur restaurant.
+    MANAGER_CASHIER, ADMIN ou SUPERADMIN dans leur restaurant,
+    ou étant propriétaire d'un restaurant.
     """
+    allowed_roles = ["MANAGER_CASHIER", "ADMIN", "SUPERADMIN"]
 
-    allowed_roles = ["MANAGER_CASHIER", "ADMIN"]
-
-    # Vérification via les rôles chargés
-    has_allowed_role = any(
-        role.name and role.name.upper() in allowed_roles
-        for role in current_user.roles
-    )
-
-    if has_allowed_role:
+    # 1. Vérification via les rôles chargés sur l'objet user
+    if any(role.name and role.name.upper() in allowed_roles for role in current_user.roles):
         return current_user
 
-    # Vérification directe en base au cas où les rôles
-    # ne seraient pas correctement chargés
+    # 2. Vérification si l'utilisateur est propriétaire d'un restaurant (Owner)
+    from app.models.restaurant import Restaurant
+    is_owner = db.query(Restaurant).filter(Restaurant.ownerId == current_user.id).first() is not None
+    if is_owner:
+        return current_user
+
+    # 3. Vérification directe dans la table UserRole
     from app.models.associations import UserRole
     from app.models.role import Role
     from sqlalchemy import func
 
-    has_allowed_role = db.query(Role).join(UserRole).filter(
+    has_user_role = db.query(Role).join(UserRole).filter(
         UserRole.userId == current_user.id,
         func.upper(Role.name).in_(allowed_roles)
     ).first() is not None
 
-    if not has_allowed_role:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès refusé : rôle MANAGER_CASHIER ou ADMIN requis"
-        )
+    if has_user_role:
+        return current_user
 
-    return current_user
+    # 4. Vérification directe dans la table RestaurantUser
+    from app.models.restaurant_user import RestaurantUser
+    from app.enums import UserRestaurantStatus
+
+    has_ru_role = db.query(Role).join(RestaurantUser).filter(
+        RestaurantUser.userId == current_user.id,
+        RestaurantUser.status == UserRestaurantStatus.ACTIVE,
+        func.upper(Role.name).in_(allowed_roles)
+    ).first() is not None
+
+    if has_ru_role:
+        return current_user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Accès refusé : rôle MANAGER_CASHIER, ADMIN ou propriétaire requis"
+    )
