@@ -8,7 +8,7 @@ from app.main import app
 from app.database import get_session
 from app.dependencies import (
     get_current_user,
-    require_manager_or_admin,
+    require_admin,
     get_user_restaurant_id,
 )
 from app.models.user import User
@@ -109,11 +109,11 @@ def test_calculate_metric_comparison_percentage():
 def test_get_dashboard_overview_endpoint(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    manager_role = Role(name="MANAGER_CASHIER")
-    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com", roles=[manager_role])
+    admin_role = Role(name="ADMIN")
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com", roles=[admin_role])
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
+    app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     mock_overview_res = {
@@ -157,11 +157,11 @@ def test_get_dashboard_overview_endpoint(client):
 def test_get_sales_evolution_endpoint(client):
     db_mock = MagicMock()
     restaurant_id = uuid4()
-    manager_role = Role(name="MANAGER_CASHIER")
-    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com", roles=[manager_role])
+    admin_role = Role(name="ADMIN")
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com", roles=[admin_role])
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
+    app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: restaurant_id
 
     mock_sales_res = {
@@ -191,11 +191,11 @@ def test_get_sales_evolution_endpoint(client):
 
 def test_dashboard_invalid_period_param(client):
     db_mock = MagicMock()
-    manager_role = Role(name="MANAGER_CASHIER")
-    manager_user = User(id=uuid4(), name="Manager", email="manager@test.com", roles=[manager_role])
+    admin_role = Role(name="ADMIN")
+    admin_user = User(id=uuid4(), name="Admin", email="admin@test.com", roles=[admin_role])
 
     app.dependency_overrides[get_session] = lambda: db_mock
-    app.dependency_overrides[require_manager_or_admin] = lambda: manager_user
+    app.dependency_overrides[require_admin] = lambda: admin_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: uuid4()
 
     response = client.get("/dashboard/overview?period=invalid_period")
@@ -211,7 +211,7 @@ def test_dashboard_waiter_role_denied(client):
     waiter_role = Role(name="WAITER")
     waiter_user = User(id=uuid4(), name="Waiter", email="waiter@test.com", roles=[waiter_role])
 
-    # require_manager_or_admin va refuser l'accès aux serveurs
+    # require_admin va refuser l'accès aux serveurs
     app.dependency_overrides[get_session] = lambda: db_mock
     app.dependency_overrides[get_current_user] = lambda: waiter_user
     app.dependency_overrides[get_user_restaurant_id] = lambda: uuid4()

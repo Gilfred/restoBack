@@ -4,7 +4,7 @@ from uuid import UUID
 
 from app.database import get_session
 from app.dependencies import (
-    require_manager_or_admin,
+    require_admin,
     get_user_restaurant_id,
 )
 from app.schemas.dashboard import (
@@ -24,12 +24,13 @@ def get_dashboard_overview(
         description="Période sélectionnée (today, 7d, 30d, current_month, previous_month)"
     ),
     db: Session = Depends(get_session),
-    current_user=Depends(require_manager_or_admin),
+    current_user=Depends(require_admin),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
 ):
     """
     Retourne les indicateurs clés du dashboard (CA, nombre de commandes payées,
     total de commandes reçues) et leurs comparaisons à la période précédente.
+    Accès réservé aux administrateurs (ADMIN, SUPERADMIN, propriétaire de restaurant).
     """
     return dashboard_service.get_dashboard_overview(
         db=db,
@@ -45,12 +46,13 @@ def get_sales_evolution(
         description="Période sélectionnée (today, 7d, 30d, current_month, previous_month)"
     ),
     db: Session = Depends(get_session),
-    current_user=Depends(require_manager_or_admin),
+    current_user=Depends(require_admin),
     restaurant_id: UUID = Depends(get_user_restaurant_id),
 ):
     """
     Retourne la série chronologique pour le graphique 'Évolution des ventes'
     sur la période sélectionnée, complétée avec des zéro pour les jours sans vente.
+    Accès réservé aux administrateurs (ADMIN, SUPERADMIN, propriétaire de restaurant).
     """
     return dashboard_service.get_sales_evolution(
         db=db,
