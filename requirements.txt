@@ -10,7 +10,7 @@ bcrypt<4.0.0
 python-dotenv
 email-validator
 httpx
-authlib
+authlib==1.9.1
 python-multipart
 joserfc
 itsdangerous
