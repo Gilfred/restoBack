@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10 # * 24 * 2   2 days
+    SESSION_INACTIVITY_TIMEOUT_MINUTES: int = 30
+    SESSION_ABSOLUTE_EXPIRE_DAYS: int = 7
+    SESSION_ACTIVITY_UPDATE_INTERVAL_SECONDS: int = 60
 
     # DB
     DB_USER: str

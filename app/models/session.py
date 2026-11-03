@@ -9,10 +9,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.models.user import User
 
+from sqlalchemy import Boolean
+
 class Session(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    expiresAt = Column(DateTime)
-    token = Column(String(255), unique=True)
+    expiresAt = Column(DateTime(timezone=True), nullable=True)
+    token = Column(String(255), unique=True, nullable=True)
+    refreshTokenHash = Column(String(255), unique=True, nullable=True, index=True)
+    lastActivity = Column(DateTime(timezone=True), default=func.now(), nullable=False)
+    isRevoked = Column(Boolean, default=False, nullable=False)
     userId = Column(UUID(as_uuid=True), ForeignKey("user.id"))
     createdAt = Column(DateTime, default=func.now())
     updatedAt = Column(DateTime, default=func.now(), onupdate=func.now())

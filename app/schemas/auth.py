@@ -38,3 +38,7 @@ class ResetPasswordRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    refresh_token: Optional[str] = None
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: Optional[str] = None

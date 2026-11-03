@@ -63,17 +63,55 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Check if user has an active session in DB
-    # This allows logout to work by deleting sessions
-    active_session = db.query(auth_service.UserSession).filter(
-        auth_service.UserSession.userId == user.id
-    ).first()
+    # Retrieve session from DB: preferentially using claims["sid"], otherwise latest active session
+    sid_str = claims.get("sid")
+    active_session = None
+    if sid_str:
+        try:
+            active_session = auth_service.get_session_by_id(db, uuid.UUID(sid_str))
+        except (ValueError, TypeError):
+            active_session = None
+
     if not active_session:
+        # Fallback for backward compatibility (tokens without 'sid' or old format)
+        active_session = db.query(auth_service.UserSession).filter(
+            auth_service.UserSession.userId == user.id,
+            auth_service.UserSession.isRevoked == False
+        ).order_by(auth_service.UserSession.createdAt.desc()).first()
+
+    if not active_session or active_session.isRevoked:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expirée ou déconnectée",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Check if user matches session owner
+    if active_session.userId != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session invalide",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check session expiration (absolute or inactivity timeout)
+    if auth_service.is_session_expired(active_session):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expirée pour inactivité",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Update activity for legitimate user requests:
+    # Filter out technical endpoints such as token refresh, polling or maintenance requests
+    path = request.url.path if request else ""
+    is_technical_endpoint = path.startswith("/auth/refresh") or request.headers.get("X-Technical-Request") == "true"
+
+    if not is_technical_endpoint:
+        auth_service.update_session_activity(db, active_session)
+
+    # Attach the active session to request state for access in endpoints if needed
+    request.state.current_session = active_session
 
     return user
 

@@ -1,6 +1,6 @@
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union
+from typing import Any, Union, Optional
 from joserfc import jwt
 from joserfc.jwk import OctKey
 from app.core.config import settings
@@ -9,7 +9,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
 
-def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+def create_access_token(
+    subject: Union[str, Any],
+    expires_delta: timedelta = None,
+    sid: Optional[Union[str, Any]] = None
+) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -19,6 +23,8 @@ def create_access_token(subject: Union[str, Any], expires_delta: timedelta = Non
 
     header = {"alg": ALGORITHM}
     payload = {"exp": int(expire.timestamp()), "sub": str(subject)}
+    if sid:
+        payload["sid"] = str(sid)
     key = OctKey.import_key(settings.SECRET_KEY)
     return jwt.encode(header, payload, key)
 
