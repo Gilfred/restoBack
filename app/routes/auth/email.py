@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from typing import Optional
 from app.database import get_session
 from app.schemas.auth import (
     UserCreate,
@@ -8,6 +9,7 @@ from app.schemas.auth import (
     LoginRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    RefreshTokenRequest,
     Token,
 )
 from app.services import auth_service, email_service
@@ -88,17 +90,57 @@ def login_for_access_token(
         response
     )
 
+@router.post("/refresh", response_model=Token)
+def refresh_token(
+    request: Request,
+    response: Response,
+    body: Optional[RefreshTokenRequest] = None,
+    db: Session = Depends(get_session)
+):
+    """
+    Renouvelle le JWT d'accès sans prolonger le délai d'inactivité.
+    Le refresh token peut être fourni via :
+    - Cookie HttpOnly 'refresh_token'
+    - Corps JSON { "refresh_token": "..." }
+    """
+    token_str = None
+    if body and body.refresh_token:
+        token_str = body.refresh_token
+    elif request.cookies.get("refresh_token"):
+        token_str = request.cookies.get("refresh_token")
+
+    if not token_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token manquant",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return auth_service.refresh_user_token(
+        db=db,
+        refresh_token=token_str,
+        response=response
+    )
+
 @router.post("/logout")
 def logout(
+    request: Request,
     response: Response,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_session)
 ):
-    auth_service.delete_all_user_sessions(
-        db,
-        current_user.id
-    )
-    response.delete_cookie("session_token")
+    # Révoquer la session active si identifiée, ou toutes les sessions de l'utilisateur
+    active_session = getattr(request.state, "current_session", None)
+    if active_session:
+        auth_service.revoke_session_by_id(db, active_session.id)
+    else:
+        auth_service.delete_all_user_sessions(
+            db,
+            current_user.id
+        )
+
+    response.delete_cookie("session_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
 
     return {
         "message": "Successfully logged out"

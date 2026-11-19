@@ -14,5 +14,6 @@ authlib==1.9.1
 python-multipart
 joserfc
 itsdangerous
-fastapi-mail==1.6.5 
+fastapi-mail==1.6.8 
 cloudinary
+cryptography==50.0.0

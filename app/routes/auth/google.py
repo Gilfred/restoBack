@@ -48,9 +48,15 @@ async def google_callback(
     # Génération du JWT
     access_token = create_access_token(subject=user.id)
 
+    from app.services.auth_service import generate_refresh_token
+    raw_refresh_token = generate_refresh_token()
+
     # Une seule session active
     delete_all_user_sessions(db, user.id)
-    create_user_session(db, user_id=user.id)
+    session = create_user_session(db, user_id=user.id, raw_refresh_token=raw_refresh_token)
+
+    # Génération du JWT avec sid
+    access_token = create_access_token(subject=user.id, sid=session.id)
 
     # Redirection vers le frontend avec access_token dans l'URL
     redirect_url = f"{frontend_url}/auth/callback?access_token={access_token}"
@@ -59,15 +65,29 @@ async def google_callback(
         status_code=302,
     )
 
-    # Cookie HttpOnly
+    # Cookie HttpOnly pour l'access token
     redirect_response.set_cookie(
         key="session_token",
         value=access_token,
         httponly=True,
         secure=True,       #True en production (HTTPS)
         samesite="lax",
-        max_age=7 * 24 * 60 * 60,
-        expires=7 * 24 * 60 * 60,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/"
+    )
+
+    # Cookie HttpOnly pour le refresh token
+    refresh_max_age = settings.SESSION_ABSOLUTE_EXPIRE_DAYS * 24 * 60 * 60
+    redirect_response.set_cookie(
+        key="refresh_token",
+        value=raw_refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=refresh_max_age,
+        expires=refresh_max_age,
+        path="/"
     )
 
     return redirect_response
