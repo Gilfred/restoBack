@@ -1,4 +1,6 @@
 
+from dotenv import load_dotenv
+load_dotenv(override=False)
 import os
 from logging.config import fileConfig
 
@@ -59,7 +61,12 @@ def run_migrations_online() -> None:
 
     """
 
-    url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    url = os.getenv("DATABASE_URL_POSTGRES")
+
+    if not url:
+        raise RuntimeError(
+            "DATABASE_URL_POSTGRES n'est pas définie dans l'environnement."
+        )
     connectable = create_engine(url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
